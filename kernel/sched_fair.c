@@ -2291,13 +2291,6 @@ static void update_cpu_power(struct sched_domain *sd, int cpu)
 	unsigned long power = SCHED_LOAD_SCALE;
 	struct sched_group *sdg = sd->groups;
 
-	if (sched_feat(ARCH_POWER))
-		power *= arch_scale_freq_power(sd, cpu);
-	else
-		power *= default_scale_freq_power(sd, cpu);
-
-	power >>= SCHED_LOAD_SHIFT;
-
 	if ((sd->flags & SD_SHARE_CPUPOWER) && weight > 1) {
 		if (sched_feat(ARCH_POWER))
 			power *= arch_scale_smt_power(sd, cpu);
@@ -2306,6 +2299,15 @@ static void update_cpu_power(struct sched_domain *sd, int cpu)
 
 		power >>= SCHED_LOAD_SHIFT;
 	}
+
+	sdg->cpu_power_orig = power;
+
+	if (sched_feat(ARCH_POWER))
+		power *= arch_scale_freq_power(sd, cpu);
+	else
+		power *= default_scale_freq_power(sd, cpu);
+
+	power >>= SCHED_LOAD_SHIFT;
 
 	power *= scale_rt_power(cpu);
 	power >>= SCHED_LOAD_SHIFT;
@@ -2337,6 +2339,31 @@ static void update_group_power(struct sched_domain *sd, int cpu)
 	} while (group != child->groups);
 
 	sdg->cpu_power = power;
+}
+
+/*
+ * Try and fix up capacity for tiny siblings, this is needed when
+ * things like SD_ASYM_PACKING need f_b_g to select another sibling
+ * which on its own isn't powerful enough.
+ *
+ * See update_sd_pick_busiest() and check_asym_packing().
+ */
+static inline int
+fix_small_capacity(struct sched_domain *sd, struct sched_group *group)
+{
+	/*
+	 * Only siblings can have significantly less than SCHED_LOAD_SCALE
+	 */
+	if (sd->level != SD_LV_SIBLING)
+		return 0;
+
+	/*
+	 * If ~90% of the cpu_power is still there, we're good.
+	 */
+	if (group->cpu_power * 32 < group->cpu_power_orig * 29)
+		return 1;
+
+	return 0;
 }
 
 /**
@@ -2432,6 +2459,8 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
 
 	sgs->group_capacity =
 		DIV_ROUND_CLOSEST(group->cpu_power, SCHED_LOAD_SCALE);
+	if (!sgs->group_capacity)
+		sgs->group_capacity = fix_small_capacity(sd, group);
 }
 
 /**
@@ -2730,8 +2759,9 @@ ret:
  * find_busiest_queue - find the busiest runqueue among the cpus in group.
  */
 static struct rq *
-find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
-		   unsigned long imbalance, const struct cpumask *cpus)
+find_busiest_queue(struct sched_domain *sd, struct sched_group *group,
+		   enum cpu_idle_type idle, unsigned long imbalance,
+		   const struct cpumask *cpus)
 {
 	struct rq *busiest = NULL, *rq;
 	unsigned long max_load = 0;
@@ -2741,6 +2771,9 @@ find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
 		unsigned long power = power_of(i);
 		unsigned long capacity = DIV_ROUND_CLOSEST(power, SCHED_LOAD_SCALE);
 		unsigned long wl;
+
+		if (!capacity)
+			capacity = fix_small_capacity(sd, group);
 
 		if (!cpumask_test_cpu(i, cpus))
 			continue;
@@ -2858,7 +2891,7 @@ redo:
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group, idle, imbalance, cpus);
+	busiest = find_busiest_queue(sd, group, idle, imbalance, cpus);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[idle]);
 		goto out_balanced;
