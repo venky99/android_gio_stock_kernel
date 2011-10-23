@@ -241,7 +241,28 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 
 	mmc_start_request(host, mrq);
 
+<<<<<<< HEAD
 	wait_for_completion(&complete);
+=======
+#ifdef CONFIG_WIMAX
+#ifdef CONFIG_WIMAX_MMC
+	if ( !(strcmp(mmc_hostname(host), CONFIG_WIMAX_MMC))) {
+		ret = wait_for_completion_timeout(&complete, msecs_to_jiffies(5000));
+
+		if (ret <= 0) {		
+			printk("[ERR] %s: %s wait_for_completion_timeout!\n", __func__, mmc_hostname(host));
+			
+			msmsdcc_stop_data(msm_host);
+	
+			mrq->cmd->error = -ETIMEDOUT;
+			msmsdcc_request_end(msm_host, mrq); 	
+		}
+	} else
+#endif
+#endif
+		wait_for_completion(&complete);
+
+>>>>>>> 73e671c... add Brain Fuck Scheduler (BFS) v413; consolidate fixes and ck2 patchset
 }
 
 EXPORT_SYMBOL(mmc_wait_for_req);
