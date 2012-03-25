@@ -31,6 +31,12 @@
 #include <net/ipv6.h>
 #endif
 
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
+#define XT_SOCKET_HAVE_IPV6 1
+#include <linux/netfilter_ipv6/ip6_tables.h>
+#include <net/netfilter/ipv6/nf_defrag_ipv6.h>
+#endif
+
 #include <linux/netfilter/xt_socket.h>
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
