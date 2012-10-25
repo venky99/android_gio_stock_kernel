@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 //#include <linux/usb/mass_storage_function.h>
+#include <linux/slab.h>
 #include <linux/power_supply.h>
 #include <linux/gpio_event.h>
 #include <linux/i2c-gpio.h>
@@ -62,6 +63,11 @@
 #include <linux/android_pmem.h>
 #include <mach/camera.h>
 
+#ifdef CONFIG_USB_G_ANDROID
+#include <linux/usb/android.h>
+#include <mach/usbdiag.h>
+#endif
+
 #include "devices.h"
 #include "clock.h"
 #include "msm-keypad-devices.h"
@@ -72,10 +78,6 @@
 #include "pm.h"
 #ifdef CONFIG_ARCH_MSM7X27
 #include <linux/msm_kgsl.h>
-#endif
-
-#ifdef CONFIG_USB_ANDROID
-#include <linux/usb/android_composite.h>
 #endif
 
 #ifdef CONFIG_SENSORS_BMA_ACCEL
@@ -93,25 +95,25 @@
 #ifdef CONFIG_ARCH_MSM7X25
 #define MSM_PMEM_MDP_SIZE	0xb21000
 #define MSM_PMEM_ADSP_SIZE	0x97b000
-#define MSM_PMEM_AUDIO_SIZE	0x121000
 #define MSM_FB_SIZE		0x200000
 #define PMEM_KERNEL_EBI1_SIZE	0x64000
 #endif
 
 #ifdef CONFIG_ARCH_MSM7X27
 #if defined(CONFIG_MACH_TASS)
-//#define MSM_PMEM_MDP_SIZE 	0x1700000 // size = 18<<20; in gralloc.cpp
-#define MSM_PMEM_MDP_SIZE 	0x1B76000 // size = 23<<20; in gralloc.cpp
-#define MSM_PMEM_ADSP_SIZE 	0x9DE000 // 0x8DE000		// 3M :0x86E000, 2M : 0x77F000 
-#define MSM_PMEM_AUDIO_SIZE 	0x5B000 
-#define MSM_FB_SIZE 	 0xA0000 //	0x238000 // 0x500000//0x11C000	//0x5DC00 
+#define MSM_PMEM_MDP_SIZE  0x1B76000
+#define MSM_PMEM_ADSP_SIZE  0x9DE000
+#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+#define MSM_FB_SIZE    0x2EE000
+#else
+#define MSM_FB_SIZE 	 0xA0000 // 0x238000 // 0x500000 //0x11C000 //0x5DC00 
+#endif
+//#define MSM_GPU_PHYS_SIZE 	SZ_2M 
 #define PMEM_KERNEL_EBI1_SIZE 	0x1C000 
 #endif	// CONFIG_MACH_TASS
 #endif	// CONFIG_ARCH_MSM7X27
 
 //#if defined(CONFIG_MACH_EUROPA)
-/* Using upper 1/2MB of Apps Bootloader memory*/
-#define MSM_PMEM_AUDIO_START_ADDR	0x80000ul
 //#endif
 
 extern int board_hw_revision;
@@ -276,152 +278,6 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
-#ifdef CONFIG_USB_FUNCTION
-static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
-	.nluns          = 0x02,
-	.buf_size       = 16384,
-	.vendor         = "GOOGLE",
-	.product        = "Mass storage",
-	.release        = 0xffff,
-};
-
-static struct platform_device mass_storage_device = {
-	.name           = "usb_mass_storage",
-	.id             = -1,
-	.dev            = {
-		.platform_data          = &usb_mass_storage_pdata,
-	},
-};
-#endif
-#ifdef CONFIG_USB_ANDROID
-static char *usb_functions_default[] = {
-	"usb_mass_storage",
-};
-
-static char *usb_functions_default_adb[] = {
-	"adb",
-	"acm",
-	"diag",
-	"usb_mass_storage",
-};
-
-static char *usb_functions_rndis[] = {
-	"rndis",
-};
-
-static char *usb_functions_all[] = {
-#ifdef CONFIG_USB_ANDROID_ACM
-	"acm",
-#endif
-#ifdef CONFIG_USB_ANDROID_DIAG
-	"diag",
-#endif
-	"usb_mass_storage",
-	"adb",
-#ifdef CONFIG_USB_F_SERIAL
-	"modem",
-	"nmea",
-#endif
-#ifdef CONFIG_USB_ANDROID_RMNET
-	"rmnet",
-#endif
-#ifdef CONFIG_USB_ANDROID_RNDIS
-	"rndis",
-#endif
-};
-
-static struct android_usb_product usb_products[] = {
-	{
-		.product_id         = 0x6881,
-		.num_functions	= ARRAY_SIZE(usb_functions_rndis),
-		.functions	= usb_functions_rndis,
-	},
-	{
-		.product_id	= 0x689e,
-		.num_functions	= ARRAY_SIZE(usb_functions_default_adb),
-		.functions	= usb_functions_default_adb,
-	},
-	{
-		.product_id	= 0x681d,
-		.num_functions	= ARRAY_SIZE(usb_functions_default),
-		.functions	= usb_functions_default,
-	},
-};
-
-static struct usb_mass_storage_platform_data mass_storage_pdata = {
-	.nluns		= 1,
-	.vendor		= "SAMSUNG ",
-#ifdef CONFIG_SAMSUNG_TASS_ISL_B //netq change for model name for TassB israel PCL 
-	.product	= "GT-S5570B Card",
-#else 
-	.product        = "GT-S5570 Card",
-#endif	
-	.release	= 0x0100,
-};
-
-static struct platform_device usb_mass_storage_device = {
-	.name           = "usb_mass_storage",
-	.id             = -1,
-	.dev            = {
-		.platform_data          = &mass_storage_pdata,
-	},
-};
-
-static struct usb_ether_platform_data rndis_pdata = {
-	/* ethaddr is filled by board_serialno_setup */
-	.vendorID	= 0x04e8,
-	.vendorDescr	= "Qualcomm Incorporated",
-};
-
-static struct platform_device rndis_device = {
-	.name	= "rndis",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &rndis_pdata,
-	},
-};
-
-static struct android_usb_platform_data android_usb_pdata = {
-	.vendor_id	= 0x04e8,
-	.product_id	= 0x681d,
-	.version	= 0x0100,
-	.product_name	= "Samsung Android USB Device",
-	.manufacturer_name = "SAMSUNG Electronics Co., Ltd.",
-	.num_products = ARRAY_SIZE(usb_products),
-	.products = usb_products,
-	.num_functions = ARRAY_SIZE(usb_functions_all),
-	.functions = usb_functions_all,
-	.serial_number = "1234567890ABCDEF",
-};
-
-static struct platform_device android_usb_device = {
-	.name	= "android_usb",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &android_usb_pdata,
-	},
-};
-
-static int __init board_serialno_setup(char *serialno)
-{
-	int i;
-	char *src = serialno;
-
-	/* create a fake MAC address from our serial number.
-	 * first byte is 0x02 to signify locally administered.
-	 */
-	rndis_pdata.ethaddr[0] = 0x02;
-	for (i = 0; *src; i++) {
-		/* XOR the USB serial across the remaining bytes */
-		rndis_pdata.ethaddr[i % (ETH_ALEN - 1) + 1] ^= *src++;
-	}
-
-	android_usb_pdata.serial_number = serialno;
-	return 1;
-}
-__setup("androidboot.serialno=", board_serialno_setup);
-#endif
-
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
@@ -429,85 +285,17 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-#ifdef CONFIG_USB_FUNCTION
-static struct usb_function_map usb_functions_map[] = {
-	{"diag", 0},
-	{"adb", 1},
-	{"modem", 2},
-	{"nmea", 3},
-	{"mass_storage", 4},
-	{"ethernet", 5},
-	{"rmnet", 6},
+#ifdef CONFIG_USB_G_ANDROID
+static struct android_usb_platform_data android_usb_pdata = {
+        .update_pid_and_serial_num = usb_diag_update_pid_and_serial_num,
 };
 
-/* dynamic composition */
-static struct usb_composition usb_func_composition[] = {
-	{
-		.product_id         = 0x9012,
-		.functions	    = 0x5, /* 0101 */
-	},
-
-	{
-		.product_id         = 0x9013,
-		.functions	    = 0x15, /* 10101 */
-	},
-
-	{
-		.product_id         = 0x9014,
-		.functions	    = 0x30, /* 110000 */
-	},
-
-	{
-		.product_id         = 0x9016,
-		.functions	    = 0xD, /* 01101 */
-	},
-
-	{
-		.product_id         = 0x9017,
-		.functions	    = 0x1D, /* 11101 */
-	},
-
-	{
-		.product_id         = 0xF000,
-		.functions	    = 0x10, /* 10000 */
-	},
-
-	{
-		.product_id         = 0xF009,
-		.functions	    = 0x20, /* 100000 */
-	},
-
-	{
-		.product_id         = 0x9018,
-		.functions	    = 0x1F, /* 011111 */
-	},
-#ifdef CONFIG_USB_FUNCTION_RMNET
-	{
-		.product_id         = 0x9021,
-		/* DIAG + RMNET */
-		.functions	    = 0x41,
-	},
-	{
-		.product_id         = 0x9022,
-		/* DIAG + ADB + RMNET */
-		.functions	    = 0x43,
-	},
-#endif
-
-};
-
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.version	= 0x0100,
-	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = 0x5c6,
-	.product_name       = "Qualcomm HSUSB Device",
-	.serial_number      = "1234567890ABCDEF",
-	.manufacturer_name  = "Qualcomm Incorporated",
-	.compositions	= usb_func_composition,
-	.num_compositions = ARRAY_SIZE(usb_func_composition),
-	.function_map   = usb_functions_map,
-	.num_functions	= ARRAY_SIZE(usb_functions_map),
-	.config_gpio    = NULL,
+static struct platform_device android_usb_device = {
+        .name       = "android_usb",
+        .id         = -1,
+        .dev        = {
+                .platform_data = &android_usb_pdata,
+        },
 };
 #endif
 
@@ -789,12 +577,6 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.cached = 0,
 };
 
-static struct android_pmem_platform_data android_pmem_audio_pdata = {
-	.name = "pmem_audio",
-	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
-	.cached = 0,
-};
-
 static struct platform_device android_pmem_device = {
 	.name = "android_pmem",
 	.id = 0,
@@ -805,12 +587,6 @@ static struct platform_device android_pmem_adsp_device = {
 	.name = "android_pmem",
 	.id = 1,
 	.dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
-static struct platform_device android_pmem_audio_device = {
-	.name = "android_pmem",
-	.id = 2,
-	.dev = { .platform_data = &android_pmem_audio_pdata },
 };
 
 static struct platform_device android_pmem_kernel_ebi1_device = {
@@ -1331,31 +1107,56 @@ static struct platform_device msm_bluesleep_device = {
 #endif
 
 #ifdef CONFIG_ARCH_MSM7X27
-static struct resource kgsl_resources[] = {
-	{
-		.name = "kgsl_reg_memory",
-		.start = 0xA0000000,
-		.end = 0xA001ffff,
-		.flags = IORESOURCE_MEM,
+
+static struct resource kgsl_3d0_resources[] = {
+         {
+                 .name  = KGSL_3D0_REG_MEMORY,
+                 .start = 0xA0000000,
+                 .end = 0xA001ffff,
+                 .flags = IORESOURCE_MEM,
+         },
+         {
+                 .name = KGSL_3D0_IRQ,
+                 .start = INT_GRAPHICS,
+                 .end = INT_GRAPHICS,
+                 .flags = IORESOURCE_IRQ,
+         },
+};
+
+static struct kgsl_device_platform_data kgsl_3d0_pdata = {
+	.pwr_data = {
+		/*.pwrlevel = {
+			{
+				.gpu_freq = 128000000,
+				.bus_freq = 128000000,
+			},
+		},*/
+		.init_level = 0,
+		.num_levels = 1,
+		.set_grp_async = NULL,
+		.idle_timeout = HZ/5,
+		.nap_allowed = true,
 	},
-	{
-		.name = "kgsl_yamato_irq",
-		.start = INT_GRAPHICS,
-		.end = INT_GRAPHICS,
-		.flags = IORESOURCE_IRQ,
+	.clk = {
+		.name = {
+			.clk = "grp_clk",
+			.pclk = "grp_pclk",
+		},
+	},
+	.imem_clk_name = {
+		.clk = "imem_clk",
+		.pclk = NULL,
 	},
 };
 
-static struct kgsl_platform_data kgsl_pdata;
-
-static struct platform_device msm_device_kgsl = {
-	.name = "kgsl",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(kgsl_resources),
-	.resource = kgsl_resources,
-	.dev = {
-		.platform_data = &kgsl_pdata,
-	},
+struct platform_device msm_kgsl_3d0 = {
+         .name = "kgsl-3d0",
+         .id = 0,
+         .num_resources = ARRAY_SIZE(kgsl_3d0_resources),
+         .resource = kgsl_3d0_resources,
+         .dev = {
+                 .platform_data = &kgsl_3d0_pdata,
+         },
 };
 #endif
 
@@ -2001,19 +1802,8 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_gadget_peripheral,
 #endif
 #endif
-
-#ifdef CONFIG_USB_FUNCTION
-	&msm_device_hsusb_peripheral,
-	&mass_storage_device,
-#endif
-
-#ifdef CONFIG_USB_ANDROID
-	&usb_mass_storage_device,
-	&rndis_device,
-#ifdef CONFIG_USB_ANDROID_DIAG
-	&usb_diag_device,
-#endif
-	&android_usb_device,
+#ifdef CONFIG_USB_G_ANDROID
+        &android_usb_device,
 #endif
 
 	&msm_wlan_pm_device,
@@ -2026,7 +1816,6 @@ static struct platform_device *devices[] __initdata = {
 	&android_pmem_kernel_ebi1_device,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
-	&android_pmem_audio_device,
 	&msm_fb_device,
 #ifdef CONFIG_FB_MSM_LCDC_S6D04H0A_QVGA
 	&lcdc_s6d04h0a_panel_device,
@@ -2085,7 +1874,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_vb6801,
 #endif
 #ifdef CONFIG_ARCH_MSM7X27
-	&msm_device_kgsl,
+	&msm_kgsl_3d0,
 #endif
 	&hs_device,
 	&msm_batt_device,
@@ -2841,48 +2630,7 @@ static void __init msm7x2x_init(void)
 		msm7x2x_clock_data.max_axi_khz = 200000;
 
 	msm_acpu_clock_init(&msm7x2x_clock_data);
-
-#ifdef CONFIG_ARCH_MSM7X27
-	/* This value has been set to 160000 for power savings. */
-	/* OEMs may modify the value at their discretion for performance */
-	/* The appropriate maximum replacement for 160000 is: */
-	/* clk_get_max_axi_khz() */
-	kgsl_pdata.high_axi_3d = 160000;
-
-	/* 7x27 doesn't allow graphics clocks to be run asynchronously to */
-	/* the AXI bus */
-	kgsl_pdata.max_grp2d_freq = 0;
-	kgsl_pdata.min_grp2d_freq = 0;
-	kgsl_pdata.set_grp2d_async = NULL;
-	kgsl_pdata.max_grp3d_freq = 0;
-	kgsl_pdata.min_grp3d_freq = 0;
-	kgsl_pdata.set_grp3d_async = NULL;
-	kgsl_pdata.imem_clk_name = "imem_clk";
-	kgsl_pdata.grp3d_clk_name = "grp_clk";
-	kgsl_pdata.grp3d_pclk_name = "grp_pclk";
-	kgsl_pdata.grp2d0_clk_name = NULL;
-	kgsl_pdata.idle_timeout_3d = HZ/5;
-	kgsl_pdata.idle_timeout_2d = 0;
-
-#ifdef CONFIG_KGSL_PER_PROCESS_PAGE_TABLE
-	kgsl_pdata.pt_va_size = SZ_32M;
-        /* Maximum of 32 concurrent processes */
-        kgsl_pdata.pt_max_count = 32;
-#else
-	kgsl_pdata.pt_va_size = SZ_128M;
-        /* We only ever have one pagetable for everybody */
-        kgsl_pdata.pt_max_count = 1;
-#endif
-#endif
 	usb_mpp_init();
-
-#ifdef CONFIG_USB_FUNCTION
-	msm_hsusb_pdata.swfi_latency =
-		msm7x27_pm_data
-		[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
-
-	msm_device_hsusb_peripheral.dev.platform_data = &msm_hsusb_pdata;
-#endif
 
 #ifdef CONFIG_USB_MSM_OTG_72K
 	msm_device_otg.dev.platform_data = &msm_otg_pdata;
@@ -2983,14 +2731,6 @@ static int __init pmem_adsp_size_setup(char *p)
 }
 early_param("pmem_adsp_size", pmem_adsp_size_setup);
 
-static unsigned pmem_audio_size = MSM_PMEM_AUDIO_SIZE;
-static int __init pmem_audio_size_setup(char *p)
-{
-	pmem_audio_size = memparse(p, NULL);
-	return 0;
-}
-early_param("pmem_audio_size", pmem_audio_size_setup);
-
 static unsigned fb_size = MSM_FB_SIZE;
 static int __init fb_size_setup(char *p)
 {
@@ -3021,12 +2761,6 @@ static void __init msm_msm7x2x_allocate_memory_regions(void)
 		pr_info("allocating %lu bytes at %p (%lx physical) for adsp "
 			"pmem arena\n", size, addr, __pa(addr));
 	}
-
-	size = MSM_PMEM_AUDIO_SIZE ;
-	android_pmem_audio_pdata.start = MSM_PMEM_AUDIO_START_ADDR ;
-	android_pmem_audio_pdata.size = size;
-	pr_info("allocating %lu bytes (at %lx physical) for audio "
-		"pmem arena\n", size , MSM_PMEM_AUDIO_START_ADDR);
 
 	size = fb_size ? : MSM_FB_SIZE;
 	addr = alloc_bootmem(size);

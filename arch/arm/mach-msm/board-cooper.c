@@ -102,8 +102,16 @@
 #if defined(CONFIG_MACH_COOPER)
 #define MSM_PMEM_MDP_SIZE 	0x1B76000 // size = 23<<20; in gralloc.cpp
 #define MSM_PMEM_ADSP_SIZE 	0x9DE000  // 0x8DE000		// 3M :0x86E000, 2M : 0x77F000 
+<<<<<<< HEAD
 #define MSM_PMEM_AUDIO_SIZE 	0x5B000 
 #define MSM_FB_SIZE 		0x238000 // 0x500000//0x11C000	//0x5DC00 
+=======
+#ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
+#define MSM_FB_SIZE 0x2EE000
+#else
+#define MSM_FB_SIZE 0x238000 // 0x238000 // 0x500000 //0x11C000 //0x5DC00
+#endif
+>>>>>>> 80473f5... bring in other devices and some improvements from .35.14
 #define PMEM_KERNEL_EBI1_SIZE 	0x1C000 
 #endif	// CONFIG_MACH_CALLISTO
 #endif	// CONFIG_ARCH_MSM7X27
