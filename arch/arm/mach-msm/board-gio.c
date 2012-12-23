@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 //#include <linux/usb/mass_storage_function.h>
+#include <linux/stab.h>
 #include <linux/power_supply.h>
 #include <linux/gpio_event.h>
 #include <linux/i2c-gpio.h>
@@ -62,6 +63,11 @@
 #include <linux/android_pmem.h>
 #include <mach/camera.h>
 
+#ifdef CONFIG_USB_G_ANDROID
+#include <linux/usb/android.h>
+#include <mach/usbdiag.h>
+#endif
+
 #include "devices.h"
 #include "clock.h"
 #include "msm-keypad-devices.h"
@@ -72,10 +78,6 @@
 #include "pm.h"
 #ifdef CONFIG_ARCH_MSM7X27
 #include <linux/msm_kgsl.h>
-#endif
-
-#ifdef CONFIG_USB_ANDROID
-#include <linux/usb/android_composite.h>
 #endif
 
 #ifdef CONFIG_SENSORS_BMA_ACCEL
@@ -281,6 +283,7 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
+<<<<<<< HEAD
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
@@ -423,6 +426,8 @@ static int __init board_serialno_setup(char *serialno)
 __setup("androidboot.serialno=", board_serialno_setup);
 #endif
 
+=======
+>>>>>>> 33de42b... Update GIO board usb stuff
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
@@ -430,85 +435,17 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-#ifdef CONFIG_USB_FUNCTION
-static struct usb_function_map usb_functions_map[] = {
-	{"diag", 0},
-	{"adb", 1},
-	{"modem", 2},
-	{"nmea", 3},
-	{"mass_storage", 4},
-	{"ethernet", 5},
-	{"rmnet", 6},
+#ifdef CONFIG_USB_G_ANDROID
+static struct android_usb_platform_data android_usb_pdata = {
+        .update_pid_and_serial_num = usb_diag_update_pid_and_serial_num,
 };
 
-/* dynamic composition */
-static struct usb_composition usb_func_composition[] = {
-	{
-		.product_id         = 0x9012,
-		.functions	    = 0x5, /* 0101 */
-	},
-
-	{
-		.product_id         = 0x9013,
-		.functions	    = 0x15, /* 10101 */
-	},
-
-	{
-		.product_id         = 0x9014,
-		.functions	    = 0x30, /* 110000 */
-	},
-
-	{
-		.product_id         = 0x9016,
-		.functions	    = 0xD, /* 01101 */
-	},
-
-	{
-		.product_id         = 0x9017,
-		.functions	    = 0x1D, /* 11101 */
-	},
-
-	{
-		.product_id         = 0xF000,
-		.functions	    = 0x10, /* 10000 */
-	},
-
-	{
-		.product_id         = 0xF009,
-		.functions	    = 0x20, /* 100000 */
-	},
-
-	{
-		.product_id         = 0x9018,
-		.functions	    = 0x1F, /* 011111 */
-	},
-#ifdef CONFIG_USB_FUNCTION_RMNET
-	{
-		.product_id         = 0x9021,
-		/* DIAG + RMNET */
-		.functions	    = 0x41,
-	},
-	{
-		.product_id         = 0x9022,
-		/* DIAG + ADB + RMNET */
-		.functions	    = 0x43,
-	},
-#endif
-
-};
-
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.version	= 0x0100,
-	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = 0x5c6,
-	.product_name       = "Qualcomm HSUSB Device",
-	.serial_number      = "1234567890ABCDEF",
-	.manufacturer_name  = "Qualcomm Incorporated",
-	.compositions	= usb_func_composition,
-	.num_compositions = ARRAY_SIZE(usb_func_composition),
-	.function_map   = usb_functions_map,
-	.num_functions	= ARRAY_SIZE(usb_functions_map),
-	.config_gpio    = NULL,
+static struct platform_device android_usb_device = {
+        .name       = "android_usb",
+        .id         = -1,
+        .dev        = {
+                .platform_data = &android_usb_pdata,
+        },
 };
 #endif
 
