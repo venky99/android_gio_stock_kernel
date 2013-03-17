@@ -14,24 +14,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- /* 
-======================================================
-when         who           what, where, why                          comment tag
---------     ----          -------------------------------------    ------------------------------
-2011-02-25	 lkej		modify the code for read lcd information 		ZTE_LCD_LKEJ_20110225_001
-2010-06-29   luya    	modify mdelay to msleep				ZTE_LCD_LUYA_20100629_001
-2010-06-22   lht		支持工程模式读屏信息						ZTE_LCD_LHT_20100622_001
-2010-06-17   lht		decrease FTM  backlight level				ZTE_LCD_LHT_20100617_001
-2010-06-11   lht		支持工程模式读屏信息						ZTE_LCD_LHT_20100611_001
-2010-06-10   luya		修改BKL level								LCD_LUYA_20100610_01
-2010-05-05   lht		修改fix-linelength，开机图片				ZTE_LCD_LHT_20100505_001
-2010-03-25   luya		修改开机背光亮度							ZTE_LCD_LUYA_20100325_001
-2010-02-21   luya		change delay when wakeup                    ZTE_LCD_LUYA_20100221_001        
-2009-12-21   luya    	change logo file name 					 	ZTE_LCD_LUYA_20091221_001
-2009-11-28   hp             decrease initial brightness of backlight  ZTE_BACKLIGHT_HP_002
 
-=======================================================
-*/
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
