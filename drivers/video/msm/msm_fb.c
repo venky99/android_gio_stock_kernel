@@ -14,24 +14,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
- /* 
-======================================================
-when         who           what, where, why                          comment tag
---------     ----          -------------------------------------    ------------------------------
-2011-02-25	 lkej		modify the code for read lcd information 		ZTE_LCD_LKEJ_20110225_001
-2010-06-29   luya    	modify mdelay to msleep				ZTE_LCD_LUYA_20100629_001
-2010-06-22   lht		支持工程模式读屏信息						ZTE_LCD_LHT_20100622_001
-2010-06-17   lht		decrease FTM  backlight level				ZTE_LCD_LHT_20100617_001
-2010-06-11   lht		支持工程模式读屏信息						ZTE_LCD_LHT_20100611_001
-2010-06-10   luya		修改BKL level								LCD_LUYA_20100610_01
-2010-05-05   lht		修改fix-linelength，开机图片				ZTE_LCD_LHT_20100505_001
-2010-03-25   luya		修改开机背光亮度							ZTE_LCD_LUYA_20100325_001
-2010-02-21   luya		change delay when wakeup                    ZTE_LCD_LUYA_20100221_001        
-2009-12-21   luya    	change logo file name 					 	ZTE_LCD_LUYA_20091221_001
-2009-11-28   hp             decrease initial brightness of backlight  ZTE_BACKLIGHT_HP_002
 
-=======================================================
-*/
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -65,30 +48,8 @@ when         who           what, where, why                          comment tag
 #include "mdp.h"
 #include "mdp4.h"
 
-<<<<<<< HEAD
-//ZTE_LCD_LHT_20100622_001 start
-#include <linux/proc_fs.h>
-static struct proc_dir_entry * d_entry;
-static int lcd_debug;
-char  module_name[50]={"0"};
-void init_lcd_proc(void);
-void deinit_lcd_proc(void);
-static int msm_lcd_read_proc(char *page, char **start, off_t off, int count, int *eof, void *data);
-static int msm_lcd_write_proc(struct file *file, const char __user *buffer,unsigned long count, void *data);
-//ZTE_LCD_LHT_20100622_001 end
-
-
-#ifdef CONFIG_ZTE_PLATFORM
-#ifdef CONFIG_ZTE_FTM_FLAG_SUPPORT
-extern int zte_get_ftm_flag(void);
-#endif
-#endif
-#ifndef CONFIG_FB_MSM_LOGO
-#define INIT_IMAGE_FILE "/logo.bmp"								////ZTE_LCD_LUYA_20091221_001
-=======
 #ifdef CONFIG_FB_MSM_LOGO
 #define INIT_IMAGE_FILE "/initlogo.rle"
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 extern int load_565rle_image(char *filename);
 #ifdef CONFIG_FB_MSM_SEC_BOOTLOGO
 extern int load_565rle_image_onfb( char *filename, int start_x, int start_y);
@@ -211,14 +172,7 @@ static void msm_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	if (!bl_lvl && value)
 		bl_lvl = 1;
 
-<<<<<<< HEAD
-	if (bl_level_old != bl_lvl)
-		bl_updated = TRUE;
-
-	msm_fb_set_backlight(mfd, bl_lvl);
-=======
 	msm_fb_set_backlight(mfd, bl_lvl, 1);
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 }
 
 static struct led_classdev backlight_led = {
@@ -330,8 +284,6 @@ static void msm_fb_remove_sysfs(struct platform_device *pdev)
 	sysfs_remove_group(&mfd->fbi->dev->kobj, &msm_fb_attr_group);
 }
 
-<<<<<<< HEAD
-=======
 /* Mark for GetLog */
 
 struct struct_frame_buf_mark {
@@ -382,7 +334,6 @@ static struct struct_frame_buf_mark  frame_buf_mark = {
 	.frames = 2
 };
 
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 static int msm_fb_probe(struct platform_device *pdev)
 {
 	struct msm_fb_data_type *mfd;
@@ -412,6 +363,9 @@ static int msm_fb_probe(struct platform_device *pdev)
 	if (!msm_fb_resource_initialized)
 		return -EPERM;
 
+	/* Mark for GetLog */
+	frame_buf_mark.p_fb = fbram_phys - 0x13600000;
+
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
 	err = pm_runtime_set_active(&pdev->dev);
@@ -428,34 +382,10 @@ static int msm_fb_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	mfd->panel_info.frame_count = 0;
-<<<<<<< HEAD
-	///ZTE_LCD_LUYA_20100325_001,LCD_LUYA_20100610_01 2009-11-28 decrease initial brightness of backlight 
-	mfd->bl_level = mfd->panel_info.bl_max/6;
-	//ZTE_LCD_LHT_20100617_001
-#ifdef CONFIG_ZTE_PLATFORM
-#ifdef CONFIG_ZTE_FTM_FLAG_SUPPORT
-    if(zte_get_ftm_flag())
-    {
-        mfd->bl_level = 2;
-    }
-#endif
-#endif
-	//ZTE_BACKLIGHT_HP_002 end 
-#ifdef CONFIG_FB_MSM_OVERLAY
-	mfd->overlay_play_enable = 1;
-#endif
-
-       //ZTE_LCD_LHT_20100622_001 start
-       init_lcd_proc();
-       //ZTE_LCD_LHT_20100622_001 end
-       
-	bf_supported = mdp4_overlay_borderfill_supported();
-=======
 	mfd->bl_level = mfd->panel_info.bl_max;
 #ifdef CONFIG_FB_MSM_OVERLAY
 	mfd->overlay_play_enable = 1;
 #endif
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 
 	rc = msm_fb_register(mfd);
 	if (rc)
@@ -754,7 +684,7 @@ static void msmfb_early_resume(struct early_suspend *h)
 }
 #endif
 
-void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
+void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl, u32 save)
 {
 	struct msm_fb_panel_data *pdata;
 
@@ -776,8 +706,6 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl)
 	}
 }
 
-<<<<<<< HEAD
-=======
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_GIO) || defined(CONFIG_MACH_LUCAS)
 struct msm_fb_data_type *cur_mfd;
 static void bckl_func(struct work_struct *ignored); 
@@ -796,7 +724,6 @@ static bool first_boot = 1;
 #define GPIO_LCD_DET 94 
 #endif
 
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			    boolean op_enable)
 {
@@ -816,19 +743,30 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		if (!mfd->panel_power_on) {
-//			mdelay(100);
+#if defined(CONFIG_MACH_LUCAS)
+			if(first_boot) {
+				msleep(16);
+				ret = pdata->on(mfd->pdev);
+				first_boot = 0;
+				msleep(16);
+			} else {
+				ret = pdata->on(mfd->pdev);
+			}
+#else
+			msleep(16);
 			ret = pdata->on(mfd->pdev);
+			msleep(16);
+#endif
 			if (ret == 0) {
-				msleep(30);				////ZTE_LCD_LUYA_20100221_001				////ZTE_LCD_LUYA_20100629_001
 				mfd->panel_power_on = TRUE;
 
+#if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_GIO) || defined(CONFIG_MACH_LUCAS)
+			cur_mfd = mfd;
+			schedule_delayed_work(&bckl_work, 10);
+#else
 				msm_fb_set_backlight(mfd,
-<<<<<<< HEAD
-						     mfd->bl_level);
-=======
 						     mfd->bl_level, 0);
 #endif
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 
 /* ToDo: possible conflict with android which doesn't expect sw refresher */
 /*
@@ -854,13 +792,6 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 
 			mfd->op_enable = FALSE;
 			curr_pwr_state = mfd->panel_power_on;
-<<<<<<< HEAD
-			msm_fb_set_backlight(mfd, 0);		///ZTE_LCD_LUYA_20100201_001
-			mfd->panel_power_on = FALSE;
-			bl_updated = 0;
-
-//			mdelay(100);				////ZTE_LCD_LUYA_20100629_001
-=======
 			mfd->panel_power_on = FALSE;
 
 			msleep(16);
@@ -875,20 +806,14 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
 #else
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 			ret = pdata->off(mfd->pdev);
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
-            /* ZTE_BACKLIGHT_WLY_001 @2009-10-29 backlight go to dim, begin*/
-			/*msm_fb_set_backlight(mfd, 0);*/
-			/* ZTE_BACKLIGHT_WLY_001 @2009-10-29 backlight go to dim, end*/
+
+			msm_fb_set_backlight(mfd, 0, 0);
+#endif
+
 			mfd->op_enable = TRUE;
-<<<<<<< HEAD
-		} else {
-			if (pdata->power_ctrl)
-				pdata->power_ctrl(FALSE);
-=======
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 		}
 		break;
 	}
@@ -3121,210 +3046,6 @@ static int msm_fb_register_driver(void)
 	return platform_driver_register(&msm_fb_driver);
 }
 
-<<<<<<< HEAD
-//ZTE_LCD_LHT_20100622_001 start
-static int msm_lcd_read_proc(
-        char *page, char **start, off_t off, int count, int *eof, void *data)
-{
-	int len = 0;
-    printk("[ZGC]:msm_lcd_read_proc\n");
-	switch(LcdPanleID)
-	{
-		case LCD_PANEL_P726_ILI9325C:
-			strcpy(module_name,"1");
-			break;
-		case LCD_PANEL_P726_HX8347D:
-			strcpy(module_name,"2");
-			break;
-		case LCD_PANEL_P726_S6D04M0X01:
-			strcpy(module_name,"3");
-			break;
-		case LCD_PANEL_P722_HX8352A:
-			strcpy(module_name,"10");
-			break;
-		case LCD_PANEL_P727_HX8352A:
-			strcpy(module_name,"20");
-			break;
-		case LCD_PANEL_R750_ILI9481_1:
-			strcpy(module_name,"30");
-			break;
-		case LCD_PANEL_R750_ILI9481_2:
-			strcpy(module_name,"31");
-			break;
-		case LCD_PANEL_R750_ILI9481_3:
-			strcpy(module_name,"32");
-			break;
-		case LCD_PANEL_P729_TL2796:
-			strcpy(module_name,"40");
-			break;
-		case LCD_PANEL_P729_TFT_LEAD:
-			strcpy(module_name,"42");
-			break;
-		case LCD_PANEL_P729_TFT_TRULY:
-			strcpy(module_name,"41");
-			break;
-		case LCD_PANEL_P729_TFT_LEAD_CMI:
-			strcpy(module_name,"zteLEAD(Himax8363+CMI)_480*800_3.5Inch");
-			break;
-		case LCD_PANEL_P729_TFT_TRULY_LG:
-			strcpy(module_name,"zteTRULY(Himax8369+LG)_480*800_3.5Inch");
-			break;
-		case LCD_PANEL_P729_TFT_LEAD_CASIO:
-			strcpy(module_name,"zteLEAD(Himax8363+CASIO)_480*800_3.5Inch");
-			break;
-		case LCD_PANEL_V9_NT39416I:
-			strcpy(module_name,"50");
-			break;	
-		case LCD_PANEL_4P3_NT35510:
-			strcpy(module_name,"60");
-			break;
-		case LCD_PANEL_4P3_HX8369A:
-			strcpy(module_name,"61");
-			break;
-		case 62:
-			strcpy(module_name,"zteBOE(NT35510+HYDIS)_WVGA_4.3Inch");
-			break;
-		case LCD_PANEL_3P8_NT35510_1:
-			strcpy(module_name,"70");
-			break;
-		case LCD_PANEL_3P8_NT35510_2:
-			strcpy(module_name,"71");
-			break;
-		case LCD_PANEL_3P8_HX8363A:
-			strcpy(module_name,"72");
-			break;
-		case LCD_PANEL_3P5_ILI9481_1:
-			strcpy(module_name,"80");
-			break;
-		case LCD_PANEL_3P5_ILI9481_2:
-			strcpy(module_name,"81");
-			break;
-		case LCD_PANEL_3P5_R61581:
-			strcpy(module_name,"82");
-			break;
-		case LCD_PANEL_2P6_HX8368A_1:
-			strcpy(module_name,"90");
-			break;
-		case LCD_PANEL_2P6_HX8368A_2:
-			strcpy(module_name,"91");
-			break;
-		case LCD_PANEL_3P5_HX8369_LG:
-			strcpy(module_name,"zteLEAD(Himax8369+LG)_480*800_3.5Inch");
-			break;
-		case LCD_PANEL_3P5_HX8369_HYDIS:
-			strcpy(module_name,"zteTRULYorYS(Himax8369+HYDIS)_480*800_3.5Inch");
-		case LCD_PANEL_MAX:
-		case LCD_PANEL_NOPANEL:
-			break;
-		default:
-			strcpy(module_name,"0");
-			//len = sprintf(page, "%s\n","0");
-			break;
-	}
-	len = sprintf(page, "%s\n",module_name);
-	return len;
-
-}
-
-static int msm_lcd_write_proc(struct file *file, const char __user *buffer,
-			     unsigned long count, void *data)
-{
-	char tmp[16] = {0};
-	int len = 0;
-	len = count;
-	
-    
-	if (count > sizeof(tmp)) {
-		len = sizeof(tmp) - 1;
-	}
-	if(copy_from_user(tmp, buffer, len))
-                return -EFAULT;
-	if (strstr(tmp, "on")) {
-		lcd_debug = 1;
-	} else if (strstr(tmp, "off")) {
-		lcd_debug = 0;
-	}
-	return count;
-
-}
-
-void  init_lcd_proc(void)
-{
-       printk("[ZGC]:init_lcd_proc\n");
-	d_entry = create_proc_entry("msm_lcd",
-				    0, NULL);
-        if (d_entry) {
-                d_entry->read_proc = msm_lcd_read_proc;
-                d_entry->write_proc = msm_lcd_write_proc;
-                d_entry->data = NULL;
-        }
-
-}
-
-void deinit_lcd_proc(void)
-{
-        printk("[ZGC]:deinit_lcd_proc\n");
-	if (NULL != d_entry) {
-		remove_proc_entry("msm_lcd", NULL);
-		d_entry = NULL;
-	}
-}
-//ZTE_LCD_LHT_20100622_001 end
-
-#ifdef CONFIG_FB_MSM_WRITEBACK_MSM_PANEL
-struct fb_info *msm_fb_get_writeback_fb(void)
-{
-	int c = 0;
-	for (c = 0; c < fbi_list_index; ++c) {
-		struct msm_fb_data_type *mfd;
-		mfd = (struct msm_fb_data_type *)fbi_list[c]->par;
-		if (mfd->panel.type == WRITEBACK_PANEL)
-			return fbi_list[c];
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(msm_fb_get_writeback_fb);
-
-int msm_fb_writeback_start(struct fb_info *info)
-{
-	return mdp4_writeback_start(info);
-}
-EXPORT_SYMBOL(msm_fb_writeback_start);
-
-int msm_fb_writeback_queue_buffer(struct fb_info *info,
-		struct msmfb_data *data)
-{
-	return mdp4_writeback_queue_buffer(info, data);
-}
-EXPORT_SYMBOL(msm_fb_writeback_queue_buffer);
-
-int msm_fb_writeback_dequeue_buffer(struct fb_info *info,
-		struct msmfb_data *data)
-{
-	return mdp4_writeback_dequeue_buffer(info, data);
-}
-EXPORT_SYMBOL(msm_fb_writeback_dequeue_buffer);
-
-int msm_fb_writeback_stop(struct fb_info *info)
-{
-	return mdp4_writeback_stop(info);
-}
-EXPORT_SYMBOL(msm_fb_writeback_stop);
-int msm_fb_writeback_init(struct fb_info *info)
-{
-	return mdp4_writeback_init(info);
-}
-EXPORT_SYMBOL(msm_fb_writeback_init);
-int msm_fb_writeback_terminate(struct fb_info *info)
-{
-	return mdp4_writeback_terminate(info);
-}
-EXPORT_SYMBOL(msm_fb_writeback_terminate);
-#endif
-
-=======
->>>>>>> f8df2fd... revert to elder drivers/video/msm
 struct platform_device *msm_fb_add_device(struct platform_device *pdev)
 {
 	struct msm_fb_panel_data *pdata;
