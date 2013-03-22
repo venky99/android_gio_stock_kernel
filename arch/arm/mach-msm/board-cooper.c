@@ -26,7 +26,7 @@
 #include <linux/power_supply.h>
 #include <linux/gpio_event.h>
 #include <linux/i2c-gpio.h>
-
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
