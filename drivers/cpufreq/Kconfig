@@ -73,6 +73,13 @@ config CPU_FREQ_DEFAULT_GOV_ZEN
 	help
 	  Use the CPUFreq governor 'Zen' as default.
 	  
+	  
+config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
+	bool "interactive"
+	select CPU_FREQ_GOV_INTERACTIVE
+	help
+	  Use the CPUFreq governor 'Interactive' as default.
+	  
 config CPU_FREQ_DEFAULT_GOV_RAGE
 	bool "rage"
 	select CPU_FREQ_GOV_RAGE
@@ -139,6 +146,12 @@ config CPU_FREQ_GOV_SMARTASSH3
 	  
 config CPU_FREQ_GOV_ZEN
 	tristate "'Zen' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	  If in doubt, say N.
+	  
+config CPU_FREQ_GOV_INTERACTIVE
+	tristate "'INTERACTIVE' cpufreq governor"
 	depends on CPU_FREQ
 	help
 	  If in doubt, say N.

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+cp arch/arm/boot/zImage ramdisk
+
+cd ramdisk
+
+./repack_bootimg.pl zImage ramdisk-miui boot.img
+
+sleep 1
+
+zip -0 cleanKernel.zip -r META-INF boot.img
+
+sleep 2
+
+adb push cleanKernel.zip /sdcard/Kernel
+
+cd ..

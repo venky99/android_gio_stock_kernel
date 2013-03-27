@@ -1,0 +1,21 @@
+ui_print("Installing cleanKernel");
+show_progress(5, 50);
+assert(package_extract_file("boot.img", "/tmp/boot.img"),
+       write_raw_image("/tmp/boot.img", "boot"),
+       delete("/tmp/boot.img"));
+show_progress(10, 50);
+run_program("/sbin/busybox","mount","/system");
+show_progress(15, 50);
+run_program("/sbin/busybox","mount","-o","rw,remount","/system");
+show_progress(20, 50);
+ui_print("Installing modified keylayout");
+#package_extract_dir("system/usr", "/system/usr");
+show_progress(25, 50);
+show_progress(30, 50);
+show_progress(35, 50);
+show_progress(40, 50);
+show_progress(45, 50);
+unmount("/system");
+show_progress(50, 50);
+ui_print("cleanKernel Installed");
+

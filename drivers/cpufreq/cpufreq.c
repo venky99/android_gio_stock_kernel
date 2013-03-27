@@ -116,6 +116,10 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 		unsigned int event);
 static unsigned int __cpufreq_get(unsigned int cpu);
 static void handle_update(struct work_struct *work);
+bool have_governor_per_policy(void)
+{
+  return cpufreq_driver->have_governor_per_policy;
+}
 
 /**
  * Two notifier lists: the "policy" list is involved in the
@@ -185,7 +189,6 @@ void cpufreq_cpu_put(struct cpufreq_policy *data)
 	module_put(cpufreq_driver->owner);
 }
 EXPORT_SYMBOL_GPL(cpufreq_cpu_put);
-
 
 /*********************************************************************
  *                     UNIFIED DEBUG HELPERS                         *
@@ -1789,7 +1792,7 @@ EXPORT_SYMBOL(cpufreq_get_policy);
 static int __cpufreq_set_policy(struct cpufreq_policy *data,
 				struct cpufreq_policy *policy)
 {
-	int ret = 0;
+	int ret = 0, failed = 1;
 
 	cpufreq_debug_disable_ratelimit();
 	dprintk("setting new policy for CPU %u: %u - %u kHz\n", policy->cpu,
@@ -1844,17 +1847,30 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			dprintk("governor switch\n");
 
 			/* end old governor */
-			if (data->governor)
+			if (data->governor) {
 				__cpufreq_governor(data, CPUFREQ_GOV_STOP);
+				__cpufreq_governor(data,
+						CPUFREQ_GOV_POLICY_EXIT);
+			}
 
 			/* start new governor */
 			data->governor = policy->governor;
-			if (__cpufreq_governor(data, CPUFREQ_GOV_START)) {
+			if (!__cpufreq_governor(data, CPUFREQ_GOV_POLICY_INIT)) {
+				if (!__cpufreq_governor(data, CPUFREQ_GOV_START))
+					failed = 0;
+				else
+					__cpufreq_governor(data,
+							CPUFREQ_GOV_POLICY_EXIT);
+			}
+
+			if (failed) {
 				/* new governor failed, so re-start old one */
 				dprintk("starting governor %s failed\n",
 							data->governor->name);
 				if (old_gov) {
 					data->governor = old_gov;
+					__cpufreq_governor(data,
+							CPUFREQ_GOV_POLICY_INIT);
 					__cpufreq_governor(data,
 							   CPUFREQ_GOV_START);
 				}
