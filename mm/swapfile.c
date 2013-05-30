@@ -30,6 +30,7 @@
 #include <linux/capability.h>
 #include <linux/syscalls.h>
 #include <linux/memcontrol.h>
+#include <linux/ksm.h>
 
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -1248,7 +1249,7 @@ static int try_to_unuse(unsigned int type)
 		 * this splitting happens to be just what is needed to
 		 * handle where KSM pages have been swapped out: re-reading
 		 * is unnecessarily slow, but we can fix that later on.
-		 */
+ 		 */
 		if (swap_count(*swap_map) &&
 		     PageDirty(page) && PageSwapCache(page)) {
 			struct writeback_control wbc = {

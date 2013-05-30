@@ -56,6 +56,7 @@
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
 #include <linux/migrate.h>
+#include <linux/ksm.h>
 
 #include <asm/tlbflush.h>
 
@@ -69,7 +70,7 @@ static inline struct anon_vma *anon_vma_alloc(void)
 	return kmem_cache_alloc(anon_vma_cachep, GFP_KERNEL);
 }
 
-void anon_vma_free(struct anon_vma *anon_vma)
+inline void anon_vma_free(struct anon_vma *anon_vma)
 {
 	kmem_cache_free(anon_vma_cachep, anon_vma);
 }
@@ -250,7 +251,7 @@ static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
 	list_del(&anon_vma_chain->same_anon_vma);
 
 	/* We must garbage collect the anon_vma if it's empty */
-	empty = list_empty(&anon_vma->head) && !anonvma_external_refcount(anon_vma);
+	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
 	spin_unlock(&anon_vma->lock);
 
 	if (empty)
@@ -276,6 +277,7 @@ static void anon_vma_ctor(void *data)
 	spin_lock_init(&anon_vma->lock);
 	anonvma_external_refcount_init(anon_vma);
 	INIT_LIST_HEAD(&anon_vma->head);
+	ksm_refcount_init(anon_vma);
 }
 
 void __init anon_vma_init(void)
@@ -340,8 +342,16 @@ vma_address(struct page *page, struct vm_area_struct *vma)
  */
 unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 {
-	if (PageAnon(page))
-		;
+	if (PageAnon(page)) {
+    struct anon_vma *page__anon_vma = page_anon_vma(page);
+    /*
+     * Note: swapoff's unuse_vma() is more efficient with this
+     * check, and needs it to match anon_vma when KSM is active.
+     */
+    if (!vma->anon_vma || !page__anon_vma ||
+        vma->anon_vma != page__anon_vma)
+        return -EFAULT;
+    } 
 	else if (page->mapping && !(vma->vm_flags & VM_NONLINEAR)) {
 		if (!vma->vm_file ||
 		    vma->vm_file->f_mapping != page->mapping)
