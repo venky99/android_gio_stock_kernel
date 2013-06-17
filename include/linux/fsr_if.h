@@ -85,7 +85,8 @@
 #define PARTITION_BITS				5				///< partition bit
 #define PARTITION_MASK				MASK(PARTITION_BITS)		///< partition bit mask macro
 #define MAX_FLASH_PARTITIONS			((0x1 << PARTITION_BITS) + 4)	///< calculate number of partitions
-#define MAX_PAGE_SIZE 				4096				///< page size
+#define MAX_PAGE_SIZE 				8192				///< page size
+#define MAX_SPARE_SIZE			432
 #define MAX_STL_OPERATION_BUFFER_SIZE		(128 * 1024)			///< STL dump, restore buffer size
 #define MAX_VERSION_STR_LENTH			30				///< Version string length
 #define MAX_FILE_NAME_LENTH			32  				///< Device file name max length
@@ -123,6 +124,7 @@
 #define BML_ERASE				0x8A25		///< BML erase partition or chip
 #define BML_ERASE_PARTITION			0x8A26		///< BML erase partition (not used)
 #define BML_DUMP				0x8A27		///< BML dump partition or chip
+#define BML_DUMP_WITH_SPARE			0x8B01		///< BML dump partition or chip
 #define BML_RESTORE				0x8A28		///< BML restore partition or chip
 #define BML_UNLOCK_ALL				0x8A29		///< unlock all partition RO -> RW
 #define BML_SET_RW_AREA				0x8A2A		///< set RW partition (not used)
@@ -168,6 +170,7 @@ typedef struct {
 	unsigned int msize_page;				///< main page size
 	unsigned int pages_blk;					///< number of pages in the block
 	unsigned int msize_blk;					///< main page size in the block
+	unsigned int mblk_dev;
 } LLD_DEVINFO_T;
 
 /**
@@ -177,6 +180,7 @@ typedef struct {
 typedef struct {
 	unsigned int	offset;					///< offset from start of partition
 	unsigned char 	mbuf[MAX_PAGE_SIZE];			///< buffer between app and device driver
+	unsigned char		sbuf[MAX_SPARE_SIZE];
 } PAGEINFO_T;
 
 /**
@@ -201,6 +205,7 @@ typedef struct {
 	int    part_id[MAX_FLASH_PARTITIONS];			///< ID of each partition
 	int    part_attr[MAX_FLASH_PARTITIONS]; 		///< attribute of each partition
 	int    part_addr[MAX_FLASH_PARTITIONS]; 		///< address of each partition
+	int	part_1stvun[MAX_FLASH_PARTITIONS];
 } BML_PARTTAB_T;
 
 /**
