@@ -31,7 +31,8 @@
 #define DATE_SIZE 13
 #define ACCL_OFFSET_SIZE 25
 
-extern struct device *kr3dm_dev_t;
+struct device *kr3dm_dev_t;
+EXPORT_SYMBOL(kr3dm_dev_t);
 
 typedef struct _cal_param {	
 	char result;
@@ -380,7 +381,8 @@ int _set_recovery_mode_done(void)
 }
 
 #if defined(CONFIG_MACH_ROOKIE) || defined(CONFIG_MACH_ESCAPE) || defined(CONFIG_MACH_GIO)
-extern int (*set_ram_dump_level)(int ram_dump_level);
+int (*set_ram_dump_level)(int ram_dump_level);
+EXPORT_SYMBOL(set_ram_dump_level);
 
 int _set_ram_dump_level(int ram_dump_level)
 {
@@ -432,7 +434,8 @@ int _set_ram_dump_level(int ram_dump_level)
 
 }
 
-extern int (*get_ram_dump_level)(void);
+int (*get_ram_dump_level)(void);
+EXPORT_SYMBOL(get_ram_dump_level);
 
 int _get_ram_dump_level(void)
 {

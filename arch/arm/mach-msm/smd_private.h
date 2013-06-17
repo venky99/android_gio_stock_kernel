@@ -315,5 +315,72 @@ int smsm_check_for_modem_crash(void);
 void *smem_find(unsigned id, unsigned size);
 void *smem_get_entry(unsigned id, unsigned *size);
 void smd_diag(void);
+#ifdef CONFIG_MACH_GIO
+#define SMEM_VENDOR1_CAPTURE_BUF_SIZE (128*1024)
 
+enum{
+  reg_cpsr  =16,
+  reg_pc    =15,
+  reg_lr    =14,
+  reg_sp    =13,
+  reg_ip    =12,
+  reg_fp    =11,
+  reg_r10   =10,
+  reg_r9    =9,
+  reg_r8    =8,
+  reg_r7    =7,
+  reg_r6    =6,
+  reg_r5    =5,
+  reg_r4    =4,
+  reg_r3    =3,
+  reg_r2    =2,
+  reg_r1    =1,
+  reg_r0    =0,
+  reg_ORIG_r0 =17
+};
+
+typedef struct MODEM_RAMDUMP_TYPE
+{
+  unsigned char modem;
+  unsigned int modem_line;
+  unsigned char modem_file[40];
+  unsigned char modem_format[40];
+  unsigned char modem_qxdm_message[80];
+}modem_ramdump;
+
+typedef struct APPS_RAMDUMP_TYPE
+{
+  unsigned char apps;
+  size_t apps_regs[18];
+  size_t apps_pid;
+  size_t mmu_table[4];
+  unsigned char apps_process[100];
+  unsigned char apps_string[100];
+}apps_ramdump;
+
+typedef struct SMEM_VENDOR1_ID_TYPE
+{
+  unsigned char rebuild;
+  unsigned char hw_version;
+  unsigned char off_charging_off;
+  
+  unsigned char download_mode;
+  
+  modem_ramdump modem_dump;
+  apps_ramdump  apps_dump;
+  unsigned char capture_buffer[SMEM_VENDOR1_CAPTURE_BUF_SIZE];
+
+  size_t efs_start_block;
+  size_t efs_length;
+
+  unsigned int ram_dump_level;
+  size_t smem_spare_region[4]; //smem_spare_region[0] & smem_spare_region[1]is used by kimjungbae on CP side, smem_spare_region[3] is used by leesunggyu(fota)
+}__attribute__((aligned(8))) __attribute__((packed))samsung_vendor1_id;
+
+
+void * klog_buf_addr(void);
+void * p_main_addr(void);
+void * p_radio_addr(void);
+void * p_events_addr(void);
+#endif
 #endif
