@@ -1232,6 +1232,7 @@ void *smem_alloc(unsigned id, unsigned size)
 {
 	return smem_find(id, size);
 }
+EXPORT_SYMBOL(smem_alloc);
 
 #define SMEM_SPINLOCK_SMEM_ALLOC       "S:3"
 static remote_spinlock_t remote_spinlock;

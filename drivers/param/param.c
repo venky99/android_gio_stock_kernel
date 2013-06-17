@@ -9,7 +9,6 @@
 #include <asm/errno.h>
 #include <asm/uaccess.h>
 #include <linux/device.h>
-
 #include "param.h"
 #include <samsung_flash.h>
 
