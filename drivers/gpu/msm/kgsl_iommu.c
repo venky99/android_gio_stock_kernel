@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,7 +144,8 @@ static int kgsl_get_iommu_ctxt(struct kgsl_iommu *iommu,
 }
 
 static void kgsl_iommu_setstate(struct kgsl_device *device,
-				struct kgsl_pagetable *pagetable)
+				struct kgsl_pagetable *pagetable,
+				unsigned int context_id)
 {
 	struct kgsl_mmu *mmu = &device->mmu;
 
@@ -153,7 +154,7 @@ static void kgsl_iommu_setstate(struct kgsl_device *device,
 		 *  specified page table
 		 */
 		if (mmu->hwpagetable != pagetable) {
-			kgsl_idle(device, KGSL_TIMEOUT_DEFAULT);
+			kgsl_idle(device);
 			kgsl_detach_pagetable_iommu_domain(mmu);
 			mmu->hwpagetable = pagetable;
 			if (mmu->hwpagetable)
@@ -262,12 +263,12 @@ kgsl_iommu_map(void *mmu_specific_pt,
 	iommu_virt_addr = memdesc->gpuaddr;
 
 	ret = iommu_map_range(domain, iommu_virt_addr, memdesc->sg,
-				memdesc->size, MSM_IOMMU_ATTR_NONCACHED);
+				memdesc->size, (IOMMU_READ | IOMMU_WRITE));
 	if (ret) {
 		KGSL_CORE_ERR("iommu_map_range(%p, %x, %p, %d, %d) "
 				"failed with err: %d\n", domain,
 				iommu_virt_addr, memdesc->sg, memdesc->size,
-				MSM_IOMMU_ATTR_NONCACHED, ret);
+				0, ret);
 		return ret;
 	}
 
@@ -307,10 +308,10 @@ kgsl_iommu_get_current_ptbase(struct kgsl_device *device)
 {
 	/* Current base is always the hwpagetables domain as we
 	 * do not use per process pagetables right not for iommu.
-	 * This will change when we switch to per process pagetables.
-	 */
+	 * This will change when we switch to per process pagetables.*/
 	return (unsigned int)device->mmu.hwpagetable->priv;
 }
+
 
 struct kgsl_mmu_ops iommu_ops = {
 	.mmu_init = kgsl_iommu_init,
@@ -331,4 +332,3 @@ struct kgsl_mmu_pt_ops iommu_pt_ops = {
 	.mmu_pt_equal = kgsl_iommu_pt_equal,
 	.mmu_pt_get_flags = NULL,
 };
-
