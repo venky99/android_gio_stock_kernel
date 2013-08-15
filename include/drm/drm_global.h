@@ -1,6 +1,6 @@
 /**************************************************************************
  *
- * Copyright 2006 Tungsten Graphics, Inc., Bismack, ND. USA.
+ * Copyright 2008-2009 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -23,43 +23,31 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
- *
  **************************************************************************/
 /*
- * Simple open hash tab implementation.
- *
- * Authors:
- * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
+ * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#ifndef DRM_HASHTAB_H
-#define DRM_HASHTAB_H
-
-#include <linux/list.h>
-
-#define drm_hash_entry(_ptr, _type, _member) container_of(_ptr, _type, _member)
-
-struct drm_hash_item {
-	struct hlist_node head;
-	unsigned long key;
+#ifndef _DRM_GLOBAL_H_
+#define _DRM_GLOBAL_H_
+enum drm_global_types {
+	DRM_GLOBAL_TTM_MEM = 0,
+	DRM_GLOBAL_TTM_BO,
+	DRM_GLOBAL_TTM_OBJECT,
+	DRM_GLOBAL_NUM
 };
 
-struct drm_open_hash {
-	struct hlist_head *table;
-	u8 order;
+struct drm_global_reference {
+	enum drm_global_types global_type;
+	size_t size;
+	void *object;
+	int (*init) (struct drm_global_reference *);
+	void (*release) (struct drm_global_reference *);
 };
 
-extern int drm_ht_create(struct drm_open_hash *ht, unsigned int order);
-extern int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item);
-extern int drm_ht_just_insert_please(struct drm_open_hash *ht, struct drm_hash_item *item,
-				     unsigned long seed, int bits, int shift,
-				     unsigned long add);
-extern int drm_ht_find_item(struct drm_open_hash *ht, unsigned long key, struct drm_hash_item **item);
-
-extern void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key);
-extern int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key);
-extern int drm_ht_remove_item(struct drm_open_hash *ht, struct drm_hash_item *item);
-extern void drm_ht_remove(struct drm_open_hash *ht);
-
+extern void drm_global_init(void);
+extern void drm_global_release(void);
+extern int drm_global_item_ref(struct drm_global_reference *ref);
+extern void drm_global_item_unref(struct drm_global_reference *ref);
 
 #endif
