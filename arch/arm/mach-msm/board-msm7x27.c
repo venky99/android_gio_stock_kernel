@@ -107,7 +107,7 @@
 #define MSM_PMEM_MDP_SIZE       0xA00000
 #define MSM_PMEM_ADSP_SIZE      0x77F000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
-#define MSM_FB_SIZE    0x2EE000
+#define MSM_FB_SIZE    0xF1000
 #else
 #define MSM_FB_SIZE    0xA0000
 #endif
@@ -1082,6 +1082,7 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 	.num_levels = 1,
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/5,
+	.strtstp_sleepwake = true,
 	.clk_map = KGSL_CLK_CORE | KGSL_CLK_IFACE | KGSL_CLK_MEM,
 };
 
