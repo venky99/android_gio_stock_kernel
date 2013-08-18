@@ -19,6 +19,10 @@
 #ifndef __LINUX_IOMMU_H
 #define __LINUX_IOMMU_H
 
+#include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/scatterlist.h>
+
 #define IOMMU_READ	(1)
 #define IOMMU_WRITE	(2)
 #define IOMMU_CACHE	(4) /* DMA cache coherency */
@@ -40,6 +44,8 @@ struct iommu_ops {
 		   phys_addr_t paddr, int gfp_order, int prot);
 	int (*unmap)(struct iommu_domain *domain, unsigned long iova,
 		     int gfp_order);
+        int (*map_range)(struct iommu_domain *domain, unsigned int iova,
+                    struct scatterlist *sg, unsigned int len, int prot);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
 				    unsigned long iova);
 	int (*domain_has_cap)(struct iommu_domain *domain,

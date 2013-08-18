@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,8 +34,8 @@ struct kgsl_iommu {
 static int kgsl_iommu_pt_equal(struct kgsl_pagetable *pt,
 					unsigned int pt_base)
 {
-	struct iommu_domain *domain = pt->priv;
-	return pt && pt_base && ((unsigned int)domain == pt_base);
+	struct iommu_domain *domain = pt ? pt->priv : NULL;
+	return domain && pt_base && ((unsigned int)domain == pt_base);
 }
 
 static void kgsl_iommu_destroy_pagetable(void *mmu_specific_pt)
@@ -128,6 +128,7 @@ static int kgsl_get_iommu_ctxt(struct kgsl_iommu *iommu,
 	struct platform_device *pdev =
 		container_of(device->parentdev, struct platform_device, dev);
 	struct kgsl_device_platform_data *pdata_dev = pdev->dev.platform_data;
+#if 0
 	if (pdata_dev->iommu_user_ctx_name)
 		iommu->iommu_user_dev = msm_iommu_get_ctx(
 					pdata_dev->iommu_user_ctx_name);
@@ -141,11 +142,12 @@ static int kgsl_get_iommu_ctxt(struct kgsl_iommu *iommu,
 		status = -EINVAL;
 	}
 	return status;
+#endif
+	return -EINVAL;
 }
 
 static void kgsl_iommu_setstate(struct kgsl_device *device,
-				struct kgsl_pagetable *pagetable,
-				unsigned int context_id)
+				struct kgsl_pagetable *pagetable)
 {
 	struct kgsl_mmu *mmu = &device->mmu;
 
@@ -154,7 +156,7 @@ static void kgsl_iommu_setstate(struct kgsl_device *device,
 		 *  specified page table
 		 */
 		if (mmu->hwpagetable != pagetable) {
-			kgsl_idle(device);
+			kgsl_idle(device, KGSL_TIMEOUT_DEFAULT);
 			kgsl_detach_pagetable_iommu_domain(mmu);
 			mmu->hwpagetable = pagetable;
 			if (mmu->hwpagetable)
@@ -239,7 +241,7 @@ kgsl_iommu_unmap(void *mmu_specific_pt,
 	if (range == 0 || gpuaddr == 0)
 		return 0;
 
-	ret = iommu_unmap_range(domain, gpuaddr, range);
+	ret = iommu_unmap(domain, gpuaddr, range);
 	if (ret)
 		KGSL_CORE_ERR("iommu_unmap_range(%p, %x, %d) failed "
 			"with err: %d\n", domain, gpuaddr,
@@ -308,10 +310,10 @@ kgsl_iommu_get_current_ptbase(struct kgsl_device *device)
 {
 	/* Current base is always the hwpagetables domain as we
 	 * do not use per process pagetables right not for iommu.
-	 * This will change when we switch to per process pagetables.*/
+	 * This will change when we switch to per process pagetables.
+	 */
 	return (unsigned int)device->mmu.hwpagetable->priv;
 }
-
 
 struct kgsl_mmu_ops iommu_ops = {
 	.mmu_init = kgsl_iommu_init,
