@@ -61,11 +61,23 @@ choice
 	  This option sets which CPUFreq governor shall be loaded at
 	  startup. If in doubt, select 'performance'.
 
-	config CPU_FREQ_DEFAULT_GOV_SMARTASSH3
+config CPU_FREQ_DEFAULT_GOV_SMARTASSH3
 	bool "smartassH3"
 	select CPU_FREQ_GOV_SMARTASSH3
 	help
 	  Use the CPUFreq governor 'SmartassH3' as default.
+	  
+config CPU_FREQ_DEFAULT_GOV_ZEN
+	bool "zen"
+	select CPU_FREQ_GOV_ZEN
+	help
+	  Use the CPUFreq governor 'Zen' as default.
+	  
+config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
+	bool "zen"
+	select CPU_FREQ_GOV_INTERACTIVE
+	help
+	  Use the CPUFreq governor 'Interactive' as default.
 
 config CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 	bool "performance"
@@ -124,6 +136,19 @@ config CPU_FREQ_GOV_SMARTASSH3
 	help
 	  'SmartassH3' - a "smartassV2 with tweaks by H3ROS" governor.
 	  If in doubt, say N.
+	  
+config CPU_FREQ_GOV_ZEN
+	tristate "'Zen' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_INTERACTIVE
+	tristate "'Interactive' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	  If in doubt, say N.
+
 
 config CPU_FREQ_GOV_PERFORMANCE
 	tristate "'performance' governor"

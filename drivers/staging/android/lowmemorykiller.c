@@ -40,17 +40,21 @@ static uint32_t lowmem_debug_level = 2;
 static int lowmem_adj[6] = {
 	0,
 	1,
-	6,
-	12,
+	3,
+	7,
+	9,
+	14,
 };
-static int lowmem_adj_size = 4;
+static int lowmem_adj_size = 6;
 static size_t lowmem_minfree[6] = {
-	3 * 512,	/* 6MB */
-	2 * 1024,	/* 8MB */
-	4 * 1024,	/* 16MB */
-	16 * 1024,	/* 64MB */
+	1536,
+	3072,
+	8192,
+	10240,
+	12800,
+	15360,
 };
-static int lowmem_minfree_size = 4;
+static int lowmem_minfree_size = 6;
 
 static struct task_struct *lowmem_deathpending;
 static DEFINE_SPINLOCK(lowmem_deathpending_lock);
@@ -222,10 +226,8 @@ static void __exit lowmem_exit(void)
 }
 
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
-module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
-			 S_IRUGO | S_IWUSR);
-module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
-			 S_IRUGO | S_IWUSR);
+module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size, S_IRUGO);
+module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size, S_IRUGO);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);

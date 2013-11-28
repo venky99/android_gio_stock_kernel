@@ -19,13 +19,14 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/sweep.h>
 #include <linux/wakelock.h>
 #include <mach/gpio.h>
 #include <linux/irq.h>	//hsil
 
 #include <linux/module.h>
 
-//#define AUTO_POWER_ON_OFF_FLAG 1
+#define AUTO_POWER_ON_OFF_FLAG 0
 
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
 unsigned int Volume_Up_irq = 0;
@@ -76,19 +77,6 @@ extern void ath_debug_sdio_claimer(void);
 
 #if defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_CALLISTO)
 int alt_key_pressed = 0;
-#endif
-
-#if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
-#if defined(CONFIG_KERNEL_SEC_MMICHECK)
-int mmi_keycode[] = {
-			KEY_BACK, KEY_HOME, KEY_MENU, KEY_POWER, KEY_VOLUMEUP, KEY_VOLUMEDOWN,
-			KEY_Q, KEY_W, KEY_E, KEY_R, KEY_T, KEY_Y, KEY_U, KEY_I, KEY_O, KEY_P, KEY_A,
-			KEY_S, KEY_D, KEY_F, KEY_G, KEY_H, KEY_J, KEY_K, KEY_L, KEY_M, KEY_Z, KEY_X,
-			KEY_C, KEY_V, KEY_B, KEY_N, KEY_M, KEY_OK, KEY_BACKSPACE, KEY_COMMA, KEY_LEFTSHIFT, 214,
-			KEY_ENTER, KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN, KEY_LEFTALT, 223, KEY_MAIL, KEY_SEARCH,
-			KEY_COMMA, KEY_SPACE, 231, 228
-	};
-#endif
 #endif
 
 struct gpio_kp {
@@ -241,7 +229,16 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 				else
 				{	
 #endif
+	if (pocket_keyguard) {
+		if (keycode == KEY_HOME || keycode == KEY_END) {
+			if (!scr_suspended || !covered)
+				input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+		} else {
 			input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+		}
+	} else {
+		input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+	}
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
 				if(keycode == KEY_HOME && pressed == 1)
 					TSP_forced_release_forkey();
@@ -277,6 +274,14 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 #endif
 		}
 	}
+}
+
+static void report_sync(struct gpio_kp *kp)
+{
+	int i;
+
+	for (i = 0; i < kp->input_devs->count; i++)
+		input_sync(kp->input_devs->dev[i]);
 }
 
 static enum hrtimer_restart gpio_keypad_timer_func(struct hrtimer *timer)
@@ -354,6 +359,7 @@ static enum hrtimer_restart gpio_keypad_timer_func(struct hrtimer *timer)
 		for (out = 0; out < mi->noutputs; out++)
 			for (in = 0; in < mi->ninputs; in++, key_index++)
 				report_key(kp, key_index, out, in);
+		report_sync(kp);
 	}
 	if (!kp->use_irq || kp->some_keys_pressed) {
 		hrtimer_start(timer, mi->poll_time, HRTIMER_MODE_REL);
@@ -383,23 +389,22 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 	unsigned short keyentry = mi->keymap[0];
 	unsigned short dev = keyentry >> MATRIX_CODE_BITS;
 
+if (pocket_keyguard && scr_suspended && covered) {
+		return IRQ_HANDLED;
+} else {
 	key_status = gpio_get_value(GPIO_POWERKEY);
 
 	if(!power_off_done) {
 		if(key_status == 0) // 0 : press
 		{
 			input_report_key(kp->input_devs->dev[dev], KEY_END, 1);
-#ifdef CONFIG_KERNEL_DEBUG_SEC
-//			printk("key event (keycode:%d, pressed:%d)\n", KEY_END, 1);	//sec: sm.kim
-#endif			
+			input_event(kp->input_devs->dev[dev], EV_SYN, 0, 0);
 			key_pressed = 1;
 		}
 		else if (key_status == 1) // 1 : release
 		{
 			input_report_key(kp->input_devs->dev[dev], KEY_END, 0);
-#ifdef CONFIG_KERNEL_DEBUG_SEC
-//			printk("key event (keycode:%d, pressed:%d)\n", KEY_END, 0); //sec: sm.kim
-#endif
+			input_event(kp->input_devs->dev[dev], EV_SYN, 0, 0);
 			key_pressed = 0;
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
 			TSP_forced_release_forkey();
@@ -410,6 +415,7 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 		printk("power_off_done : %d\n", power_off_done);
 
 	return IRQ_HANDLED;
+}
 
 }
 
@@ -519,7 +525,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 		}
 #if !defined(CONFIG_MACH_LUCAS) || !defined(CONFIG_MACH_CALLISTO)/*&& !defined(CONFIG_MACH_TASS) */
 //#ifndef CONFIG_MACH_LUCAS
-		err = set_irq_wake(irq, 1);
+		err = enable_irq_wake(irq);
 		if (err) {
 			pr_err("gpiomatrix: set_irq_wake failed for input %d, "
 				"irq %d\n", mi->input_gpios[i], irq);
@@ -533,7 +539,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 	}
 /*
 #if defined(CONFIG_MACH_TASS) 
-	err = set_irq_wake(gpio_to_irq(GPIO_KBC0), 1);
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBC0));
 	if (err) 
 	{
 		pr_err("gpiomatrix: set_irq_wake failed for input %d, "	"irq %d\n", GPIO_KBC0, irq);
@@ -541,15 +547,15 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 #endif
 */
 #if defined (CONFIG_MACH_LUCAS)
-	err = set_irq_wake(gpio_to_irq(GPIO_KBR6), 1);
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBR6));
 	if (err) 
 	{
 		pr_err("gpiomatrix: set_irq_wake failed for input %d, "	"irq %d\n", mi->input_gpios[i], irq);
 	}
 #elif defined (CONFIG_MACH_CALLISTO)
-	err = set_irq_wake(gpio_to_irq(GPIO_KBR5), 1);	// hsil
-	err = set_irq_wake(gpio_to_irq(GPIO_KBR6), 1);	// hsil
-	err = set_irq_wake(gpio_to_irq(GPIO_VOL_UP), 1);	// hsil
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBR5));	// hsil
+	err = enable_irq_wake(gpio_to_irq(GPIO_KBR6));	// hsil
+	err = enable_irq_wake(gpio_to_irq(GPIO_VOL_UP));	// hsil
 #endif
 	
 //#ifndef CONFIG_MACH_LUCAS
@@ -563,7 +569,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 		goto err_request_irq_failed;
 	}
 	
-	err = set_irq_wake(gpio_to_irq(GPIO_SLIDE), 1);
+	err = enable_irq_wake(gpio_to_irq(GPIO_SLIDE));
 	if (err) 
 		printk("[SLIDE] register wakeup source failed\n");
 #else
@@ -579,7 +585,7 @@ static int gpio_keypad_request_irqs(struct gpio_kp *kp)
 		goto err_request_irq_failed;
 	}
 	
-	err = set_irq_wake(irq, 1);
+	err = enable_irq_wake(irq);
 	if (err) 
 		printk("[PWRKEY] register wakeup source failed\n");
 
@@ -674,23 +680,21 @@ int gpio_event_matrix_func(struct gpio_event_input_devs *input_devs,
 		input_set_capability(input_devs->dev[0],EV_KEY, KEY_END); // for COOPER
 
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_LUCAS) || defined(CONFIG_MACH_GIO)
-#if defined(CONFIG_KERNEL_SEC_MMICHECK)
-		for(i = 0 ; i < ARRAY_SIZE(mmi_keycode) ; i++)
-			input_set_capability(input_devs->dev[0],EV_KEY, mmi_keycode[i]); // for COOPER			
-#endif
+		for(i = 0 ; i < 249 ; i++)
+			input_set_capability(input_devs->dev[0], EV_KEY, i); // for COOPER			
 #endif
 		for (i = 0; i < mi->noutputs; i++) {
-			if (gpio_cansleep(mi->output_gpios[i])) {
-				pr_err("gpiomatrix: unsupported output gpio %d,"
-					" can sleep\n", mi->output_gpios[i]);
-				err = -EINVAL;
-				goto err_request_output_gpio_failed;
-			}
 			err = gpio_request(mi->output_gpios[i], "gpio_kp_out");
 			if (err) {
 				pr_err("gpiomatrix: gpio_request failed for "
 					"output %d\n", mi->output_gpios[i]);
 				goto err_request_output_gpio_failed;
+			}
+			if (gpio_cansleep(mi->output_gpios[i])) {
+				pr_err("gpiomatrix: unsupported output gpio %d,"
+					" can sleep\n", mi->output_gpios[i]);
+				err = -EINVAL;
+				goto err_output_gpio_configure_failed;
 			}
 			if (mi->flags & GPIOKPF_DRIVE_INACTIVE)
 				err = gpio_direction_output(mi->output_gpios[i],
