@@ -28,6 +28,7 @@
 #include <linux/sweep.h>
 #include <mach/vreg.h>
 #include <linux/mutex.h>
+#include <linux/earlysuspend.h>
 
 #include "taos.h"
 
