@@ -149,12 +149,7 @@ extern unsigned long nr_iowait(void);
 extern unsigned long nr_iowait_cpu(int cpu);
 extern unsigned long this_cpu_load(void);
 
-<<<<<<< HEAD
-
-extern void calc_global_load(void);
-=======
 extern void calc_global_load(unsigned long ticks);
->>>>>>> 73e671c... add Brain Fuck Scheduler (BFS) v413; consolidate fixes and ck2 patchset
 
 extern unsigned long get_parent_ip(unsigned long addr);
 

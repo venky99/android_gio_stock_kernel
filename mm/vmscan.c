@@ -2376,13 +2376,9 @@ void wakeup_kswapd(struct zone *zone, int order)
 		return;
 	if (pgdat->kswapd_max_order < order)
 		pgdat->kswapd_max_order = order;
-<<<<<<< HEAD
-	if (!cpuset_zone_allowed_hardwall(zone, GFP_KERNEL))
-=======
 	active = waitqueue_active(&pgdat->kswapd_wait);
 	set_kswapd_nice(pgdat->kswapd, active);
 	if (!active)
->>>>>>> 73e671c... add Brain Fuck Scheduler (BFS) v413; consolidate fixes and ck2 patchset
 		return;
 	if (!waitqueue_active(&pgdat->kswapd_wait))
 		return;
