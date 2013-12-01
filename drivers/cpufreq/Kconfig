@@ -73,11 +73,11 @@ config CPU_FREQ_DEFAULT_GOV_ZEN
 	help
 	  Use the CPUFreq governor 'Zen' as default.
 	  
-config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
-	bool "zen"
-	select CPU_FREQ_GOV_INTERACTIVE
+config CPU_FREQ_DEFAULT_GOV_RAGE
+	bool "rage"
+	select CPU_FREQ_GOV_RAGE
 	help
-	  Use the CPUFreq governor 'Interactive' as default.
+	  Use the CPUFreq governor 'Rage' as default.
 
 config CPU_FREQ_DEFAULT_GOV_PERFORMANCE
 	bool "performance"
@@ -143,8 +143,8 @@ config CPU_FREQ_GOV_ZEN
 	help
 	  If in doubt, say N.
 
-config CPU_FREQ_GOV_INTERACTIVE
-	tristate "'Interactive' cpufreq governor"
+config CPU_FREQ_GOV_RAGE
+	tristate "'Rage' cpufreq governor"
 	depends on CPU_FREQ
 	help
 	  If in doubt, say N.

@@ -449,8 +449,8 @@ static int cpufreq_governor_zen(struct cpufreq_policy *new_policy,
 		if (suspended)
 			zen_dynamics_suspend(this_zen,new_policy);
 		else
-			this_zen->ideal_speed = ideal_step_three;
-			up_rate_us = 31000;
+			this_zen->ideal_speed = pulse_freq;
+			up_rate_us = 0;
 
 		this_zen->freq_table = cpufreq_frequency_get_table(cpu);
 
