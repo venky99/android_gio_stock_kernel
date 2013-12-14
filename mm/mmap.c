@@ -2014,6 +2014,10 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 			((addr - new->vm_start) >> PAGE_SHIFT), new);
 	else
 		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
+		
+#ifdef CONFIG_KSM
+       ksm_vma_add_new(new);
+#endif
 
 	/* Success. */
 	if (!err)
@@ -2047,9 +2051,6 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 		return -ENOMEM;
 
 	return __split_vma(mm, vma, addr, new_below);
-#ifdef CONFIG_KSM
-       ksm_vma_add_new(new);
-#endif
 
 	return 0;
 }

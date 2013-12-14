@@ -64,12 +64,12 @@ struct anon_vma_chain {
 #if defined(CONFIG_KSM) || defined(CONFIG_MIGRATION)
 static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)
 {
-	atomic_set(&anon_vma->external_refcount, 0);
+	atomic_set(&anon_vma->ksm_refcount, 0);
 }
 
 static inline int anonvma_external_refcount(struct anon_vma *anon_vma)
 {
-	return atomic_read(&anon_vma->external_refcount);
+	return atomic_read(&anon_vma->ksm_refcount);
 }
 #else
 static inline void anonvma_external_refcount_init(struct anon_vma *anon_vma)

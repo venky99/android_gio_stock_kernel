@@ -261,7 +261,7 @@ static u64 ksm_sleep_times;
 
 #define KSM_RUN_STOP	0
 #define KSM_RUN_MERGE	1
-static unsigned int ksm_run = KSM_RUN_STOP;
+static unsigned int ksm_run = KSM_RUN_MERGE;
 
 static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
 static DEFINE_MUTEX(ksm_thread_mutex);
@@ -4190,7 +4190,7 @@ again:
 			struct vm_area_struct *vma;
 
 			spin_lock(&anon_vma->lock);
-			list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+			list_for_each_entry(vma, &anon_vma->head, anon_vma_chain) {
 				address = get_rmap_addr(rmap_item);
 
 				if (address < vma->vm_start ||
@@ -4253,7 +4253,7 @@ again:
 			struct vm_area_struct *vma;
 
 			spin_lock(&anon_vma->lock);
-			list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+			list_for_each_entry(vma, &anon_vma->head, anon_vma_chain) {
 				address = get_rmap_addr(rmap_item);
 
 				if (address < vma->vm_start ||
@@ -4312,7 +4312,7 @@ again:
 			struct vm_area_struct *vma;
 
 			spin_lock(&anon_vma->lock);
-			list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+			list_for_each_entry(vma, &anon_vma->head, anon_vma_chain) {
 				address = get_rmap_addr(rmap_item);
 
 				if (address < vma->vm_start ||
