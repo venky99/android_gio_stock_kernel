@@ -198,10 +198,10 @@ static unsigned long ksm_pages_unshared;
  * Number of pages ksmd should scan in one batch. This is the top speed for
  * richly duplicated areas.
  */
-static unsigned long ksm_scan_batch_pages = 5000;
+static unsigned long ksm_scan_batch_pages = 4000;
 
 /* Milliseconds ksmd should sleep between batches */
-static unsigned int ksm_sleep_jiffies = 12;
+static unsigned int ksm_sleep_jiffies = 14;
 
 /*
  * The threshold used to filter out thrashing areas,
@@ -4822,6 +4822,7 @@ static int __init ksm_init(void)
 		err = PTR_ERR(ksm_thread);
 		goto out_free;
 	}
+	set_user_nice(ksm_thread, 19);
 
 #ifdef CONFIG_SYSFS
 	err = sysfs_create_group(mm_kobj, &ksm_attr_group);
