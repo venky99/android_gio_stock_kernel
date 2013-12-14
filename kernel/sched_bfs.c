@@ -75,6 +75,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
+#undef PRIO_LIMIT
+#define PRIO_LIMIT (MAX_PRIO + 2)
+
 #define rt_prio(prio)		unlikely((prio) < MAX_RT_PRIO)
 #define rt_task(p)		rt_prio((p)->prio)
 #define rt_queue(rq)		rt_prio((rq)->rq_prio)
@@ -85,6 +88,7 @@
 #define idleprio_task(p)	unlikely((p)->policy == SCHED_IDLEPRIO)
 #define iso_task(p)		unlikely((p)->policy == SCHED_ISO)
 #define iso_queue(rq)		unlikely((rq)->rq_policy == SCHED_ISO)
+
 #define ISO_PERIOD		((5 * HZ * grq.noc) + 1)
 
 /*
@@ -101,10 +105,11 @@
  * can work with better when scaling various scheduler parameters,
  * it's a [ 0 ... 39 ] range.
  */
-#define USER_PRIO(p)		((p)-MAX_RT_PRIO)
+#define USER_PRIO(p)		((p) - MAX_RT_PRIO)
 #define TASK_USER_PRIO(p)	USER_PRIO((p)->static_prio)
 #define MAX_USER_PRIO		(USER_PRIO(MAX_PRIO))
-#define SCHED_PRIO(p)		((p)+MAX_RT_PRIO)
+#define SCHED_PRIO(p)		((p) + MAX_RT_PRIO)
+#define STOP_PRIO		(MAX_RT_PRIO - 1)
 
 /*
  * Some helpers for converting to/from various scales. Use shifts to get
@@ -127,7 +132,7 @@
  * Value is in ms and set to a minimum of 6ms. Scales with number of cpus.
  * Tunable via /proc interface.
  */
-int rr_interval __read_mostly = 6;
+int rr_interval __read_mostly = 3;
 
 /*
  * sched_iso_cpu - sysctl which determines the cpu percentage SCHED_ISO tasks
@@ -524,12 +529,12 @@ static inline void task_grq_unlock(unsigned long *flags)
  * This interface allows printk to be called with the runqueue lock
  * held and know whether or not it is OK to wake up the klogd.
  */
-inline bool grunqueue_is_locked(void)
+bool grunqueue_is_locked(void)
 {
 	return raw_spin_is_locked(&grq.lock);
 }
 
-inline void grq_unlock_wait(void)
+void grq_unlock_wait(void)
 	__releases(grq.lock)
 {
 	smp_mb(); /* spin-unlock-wait is not a full memory barrier */
@@ -563,17 +568,18 @@ static inline void __task_grq_unlock(void)
  */
 bool above_background_load(void)
 {
-	struct task_struct *cpu_curr;
-	unsigned long cpu;
+	int cpu;
 
 	for_each_online_cpu(cpu) {
-		cpu_curr = cpu_rq(cpu)->curr;
+		struct task_struct *cpu_curr = cpu_rq(cpu)->curr;
+
 		if (unlikely(!cpu_curr))
 			continue;
-		if (PRIO_TO_NICE(cpu_curr->static_prio) < 1)
-			return 1;
+		if (PRIO_TO_NICE(cpu_curr->static_prio) < 1) {
+			return true;
+		}
 	}
-	return 0;
+	return false;
 }
 
 #ifndef __ARCH_WANT_UNLOCKED_CTXSW
@@ -643,9 +649,22 @@ static inline bool task_queued(struct task_struct *p)
  */
 static void dequeue_task(struct task_struct *p)
 {
+	int prio;
 	list_del_init(&p->run_list);
-	if (list_empty(grq.queue + p->prio))
-		__clear_bit(p->prio, grq.prio_bitmap);
+
+	prio = p->prio;
+	if (p->prio < NORMAL_PRIO)  {
+		if (list_empty(grq.queue + prio))
+			__clear_bit(prio, grq.prio_bitmap);
+	} else if(p->prio == NORMAL_PRIO) {
+		prio = NORMAL_PRIO + TASK_USER_PRIO(p);
+		if (list_empty(grq.queue + prio))
+			__clear_bit(prio, grq.prio_bitmap);
+	} else {
+		prio = NORMAL_PRIO + USER_PRIO(40);
+		if (list_empty(grq.queue + prio))
+			__clear_bit(prio, grq.prio_bitmap);
+	}
 }
 
 /*
@@ -672,6 +691,7 @@ static bool isoprio_suitable(void)
  */
 static void enqueue_task(struct task_struct *p)
 {
+	int prio;
 	if (!rt_task(p)) {
 		/* Check it hasn't gotten rt from PI */
 		if ((idleprio_task(p) && idleprio_suitable(p)) ||
@@ -680,16 +700,46 @@ static void enqueue_task(struct task_struct *p)
 		else
 			p->prio = NORMAL_PRIO;
 	}
-	__set_bit(p->prio, grq.prio_bitmap);
-	list_add_tail(&p->run_list, grq.queue + p->prio);
+	prio = p->prio;
+	if (p->prio < NORMAL_PRIO)  {
+		__set_bit(prio, grq.prio_bitmap);
+		list_add_tail(&p->run_list, grq.queue + prio);
+	} else if(p->prio == NORMAL_PRIO) {
+		prio = NORMAL_PRIO + TASK_USER_PRIO(p);
+		__set_bit(prio, grq.prio_bitmap);
+		list_add_tail(&p->run_list, grq.queue + prio);
+	} else {
+		prio = NORMAL_PRIO + USER_PRIO(40);
+		__set_bit(prio, grq.prio_bitmap);
+		list_add_tail(&p->run_list, grq.queue + prio);
+	}
 	sched_info_queued(p);
 }
 
 /* Only idle task does this as a real time task*/
 static inline void enqueue_task_head(struct task_struct *p)
 {
-	__set_bit(p->prio, grq.prio_bitmap);
-	list_add(&p->run_list, grq.queue + p->prio);
+	int prio;
+	if (!rt_task(p)) {
+		if ((idleprio_task(p) && idleprio_suitable(p)) ||
+		   (iso_task(p) && isoprio_suitable()))
+			p->prio = p->normal_prio;
+		else
+			p->prio = NORMAL_PRIO;
+	}
+	prio = p->prio;
+	if (p->prio < NORMAL_PRIO)  {
+		__set_bit(prio, grq.prio_bitmap);
+		list_add(&p->run_list, grq.queue + prio);
+	} else if(p->prio == NORMAL_PRIO) {
+		prio = NORMAL_PRIO + TASK_USER_PRIO(p);
+		__set_bit(prio, grq.prio_bitmap);
+		list_add(&p->run_list, grq.queue + prio);
+	} else {
+		prio = NORMAL_PRIO + USER_PRIO(40);
+		__set_bit(prio, grq.prio_bitmap);
+		list_add(&p->run_list, grq.queue + prio);
+	}
 	sched_info_queued(p);
 }
 
@@ -877,6 +927,11 @@ static inline bool scaling_rq(struct rq *rq)
 {
 	return rq->scaling;
 }
+
+static inline int locality_diff(struct task_struct *p, struct rq *rq)
+{
+	return rq->cpu_locality[task_cpu(p)];
+}
 #else /* CONFIG_SMP */
 static inline void inc_qnr(void)
 {
@@ -923,6 +978,11 @@ void cpu_nonscaling(int __unused)
 static inline bool scaling_rq(struct rq *rq)
 {
 	return false;
+}
+
+static inline int locality_diff(struct task_struct *p, struct rq *rq)
+{
+	return 0;
 }
 #endif /* CONFIG_SMP */
 EXPORT_SYMBOL_GPL(cpu_scaling);
@@ -2764,6 +2824,69 @@ static inline void check_deadline(struct task_struct *p)
 		time_slice_expired(p);
 }
 
+#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
+
+/*
+ * Scheduler queue bitmap specific find next bit.
+ */
+static inline unsigned long
+next_sched_bit(const unsigned long *addr, unsigned long offset)
+{
+	const unsigned long *p;
+	unsigned long result;
+	unsigned long size;
+	unsigned long tmp;
+
+	size = PRIO_LIMIT;
+	if (offset >= size)
+		return size;
+
+	p = addr + BITOP_WORD(offset);
+	result = offset & ~(BITS_PER_LONG-1);
+	size -= result;
+	offset %= BITS_PER_LONG;
+	if (offset) {
+		tmp = *(p++);
+		tmp &= (~0UL << offset);
+		if (size < BITS_PER_LONG)
+			goto found_first;
+		if (tmp)
+			goto found_middle;
+		size -= BITS_PER_LONG;
+		result += BITS_PER_LONG;
+	}
+	while (size & ~(BITS_PER_LONG-1)) {
+		if ((tmp = *(p++)))
+			goto found_middle;
+		result += BITS_PER_LONG;
+		size -= BITS_PER_LONG;
+	}
+	if (!size)
+		return result;
+	tmp = *p;
+
+found_first:
+	tmp &= (~0UL >> (BITS_PER_LONG - size));
+	if (tmp == 0UL)		/* Are any bits set? */
+		return result + size;	/* Nope. */
+found_middle:
+	return result + __ffs(tmp);
+}
+
+static inline void swap_queue(struct list_head *queue)
+{
+	struct task_struct *p, *next;
+
+	if(!list_is_singular(queue) && likely(!list_empty(queue))) {
+		p = (struct task_struct *)list_first_entry(queue, struct task_struct, run_list);
+		next = (struct task_struct *)list_first_entry(&p->run_list, struct task_struct, run_list);
+		if (deadline_before(next->deadline, p->deadline)) {
+			list_del(&next->run_list);
+			list_add(&next->run_list, queue);
+		}
+	}
+}
+
 /*
  * O(n) lookup of all tasks in the global runqueue. The real brainfuck
  * of lock contention and O(n). It's not really O(n) as only the queued,
@@ -2785,77 +2908,71 @@ static inline void check_deadline(struct task_struct *p)
 static inline struct
 task_struct *earliest_deadline_task(struct rq *rq, int cpu, struct task_struct *idle)
 {
-	struct task_struct *p, *edt, *rqpreempt = rq->preempt;
-	u64 dl, uninitialized_var(earliest_deadline);
+	struct task_struct *edt = NULL;
+	unsigned long idx = -1;
 	struct list_head *queue;
-	int idx = 0;
+	struct task_struct *p;
+	u64 earliest_deadline;
 
-	if (rqpreempt) {
-		rq->preempt = NULL;
-		if (task_queued(rqpreempt)) {
-			edt = rqpreempt;
-			goto out_take;
+	earliest_deadline = ~0ULL;
+	do {
+		idx = next_sched_bit(grq.prio_bitmap, ++idx);
+		if (idx >= PRIO_LIMIT) {
+			if(edt)
+				goto out_take;
+			return idle;
 		}
-	}
-	edt = idle;
-retry:
-	idx = find_next_bit(grq.prio_bitmap, PRIO_LIMIT, idx);
-	if (idx >= PRIO_LIMIT)
-		goto out;
-	queue = grq.queue + idx;
+		queue = grq.queue + idx;
 
-	if (idx < MAX_RT_PRIO) {
-		/* We found an rt task */
+		if (idx < MAX_RT_PRIO) {
+			/* We found an rt task */
+			list_for_each_entry(p, queue, run_list) {
+				/* Make sure cpu affinity is ok */
+				if (needs_other_cpu(p, cpu))
+					continue;
+				edt = p;
+				goto out_take;
+			}
+			/*
+			 * None of the RT tasks at this priority can run on
+			 * this cpu
+			 */
+			continue;
+		}
+
+		swap_queue(queue);
 		list_for_each_entry(p, queue, run_list) {
+			u64 dl;
+
 			/* Make sure cpu affinity is ok */
 			if (needs_other_cpu(p, cpu))
 				continue;
-			edt = p;
-			goto out_take;
+
+			/*
+			 * Soft affinity happens here by not scheduling a task
+			 * with its sticky flag set that ran on a different CPU
+			 * last when the CPU is scaling, or by greatly biasing
+			 * against its deadline when not, based on cpu cache
+			 * locality.
+			 */
+			if (task_sticky(p) && task_rq(p) != rq) {
+				if (scaling_rq(rq))
+					continue;
+				dl = p->deadline << locality_diff(p, rq);
+			} else
+				dl = p->deadline;
+
+			if (deadline_before(dl, earliest_deadline)) {
+				earliest_deadline = dl;
+				edt = p;
+			}
+
+			break;
 		}
-		/* None of the RT tasks at this priority can run on this cpu */
-		++idx;
-		goto retry;
-	}
+	} while (1);
 
-	list_for_each_entry(p, queue, run_list) {
-		/* Make sure cpu affinity is ok */
-		if (needs_other_cpu(p, cpu))
-			continue;
-
-		/*
-		 * Soft affinity happens here by not scheduling a task with
-		 * its sticky flag set that ran on a different CPU last when
-		 * the CPU is scaling, or by greatly biasing against its
-		 * deadline when not.
-		 */
-		if (task_rq(p) != rq && task_sticky(p)) {
-			if (scaling_rq(rq))
-				continue;
-			else
-				dl = p->deadline + longest_deadline_diff();
-		} else
-			dl = p->deadline;
-
-		/*
-		 * No rt tasks. Find the earliest deadline task. Now we're in
-		 * O(n) territory. This is what we silenced the compiler for
-		 * with uninitialized_var(): edt will always start as idle.
-		 */
-		if (edt == idle ||
-		    deadline_before(dl, earliest_deadline)) {
-			earliest_deadline = dl;
-			edt = p;
-		}
-	}
-	if (edt == idle) {
-		if (++idx < PRIO_LIMIT)
-			goto retry;
-		goto out;
-	}
 out_take:
 	take_task(cpu, edt);
-out:
 	return edt;
 }
 

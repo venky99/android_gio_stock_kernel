@@ -69,6 +69,7 @@ extern void umount_tree(struct vfsmount *, int, struct list_head *);
 extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
 
 extern void __init mnt_init(void);
+extern int get_nr_dirty_inodes(void);
 
 extern spinlock_t vfsmount_lock;
 

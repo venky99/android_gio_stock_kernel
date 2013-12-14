@@ -129,6 +129,8 @@ static void synaptics_ts_late_resume(struct early_suspend *h);
 static DEFINE_MUTEX(tsp_sleep_lock);
 #endif
 
+unsigned int touch_state_val;
+
 /* Sweep to wake */
 static cputime64_t tap[3] = {0};
 static short prevx = 0;
@@ -144,8 +146,8 @@ static struct position pos;
 static struct input_dev * sweep_pwrdev;
 static DEFINE_MUTEX(pwrlock);
 static DEFINE_MUTEX(trigglock);
-#define min_time 20
-#define max_time 270
+#define min_time 4
+#define max_time 290
 
 extern void sweep_setdev(struct input_dev * input_device) {
 	sweep_pwrdev = input_device;
@@ -463,7 +465,9 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		}
 		
 		if(fingerInfo[i].status < 0) continue;
-
+	
+	touch_state_val = fingerInfo[i].status;
+	
 	if (!scr_suspended) {
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
 			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
@@ -504,7 +508,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					pos.y[0] = pos.y[1];
 					pos.y[1] = fingerInfo[i].y;
 					pos.y[2] = ABS(pos.y[1], pos.y[0]);
-					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 12 && pos.y[2] < 12) {
+					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
 						pulse = true;
 						if (fingerInfo[i].y <= 180) 
 							sweep2wake_pwrtrigger(1);

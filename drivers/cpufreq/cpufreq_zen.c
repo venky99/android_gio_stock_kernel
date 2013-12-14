@@ -67,15 +67,9 @@ static int pulse_freq;
 static unsigned int ramp_up_step;
 
 /*
- * CPU freq will be increased if measured load > dynamics_thd;
+ * CPU freq will be increased if measured load > 98;
  */
-#define DEFAULT_PERFORMANCE_BIAS 8
-static unsigned short perf_bias;
-static unsigned short dynamics_thd;
 static unsigned short old_load;
-
-#define DEFAULT_SLEEP_THRESHOLD 75
-static unsigned short sleep_thd;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
@@ -87,7 +81,7 @@ static unsigned short min_cpu_load;
  * Notice we ignore this when we are below the ideal frequency.
  */
 #define DEFAULT_UP_RATE_US 31000;
-static unsigned short up_rate_us;
+static unsigned int up_rate_us;
 
 /*
  * Sampling rate, I highly recommend to leave it at 2.
@@ -150,43 +144,33 @@ struct cpufreq_governor cpufreq_gov_zen = {
 
 inline static void zen_dynamics_suspend(struct zen_info_s *this_zen, struct cpufreq_policy *policy) {
 		this_zen->ideal_speed = policy->min;
-		up_rate_us = dynamics_thd*700;
+		up_rate_us = 70000;
 }
 
 inline static void zen_dynamics_awake(struct zen_info_s *this_zen, struct cpufreq_policy *policy) {
 
 	if (old_load != this_zen->cur_cpu_load) {
-		if (this_zen->ideal_speed != ideal_step_one && this_zen->cur_cpu_load < (dynamics_thd - 80))
+		if (this_zen->ideal_speed != ideal_step_one && this_zen->cur_cpu_load < 30)
 				this_zen->ideal_speed = ideal_step_one;
 			
-		if (this_zen->ideal_speed != ideal_step_two && this_zen->cur_cpu_load >= (dynamics_thd - 80) && 
-			this_zen->cur_cpu_load < (dynamics_thd - 60)) 
+		if (this_zen->ideal_speed != ideal_step_two && this_zen->cur_cpu_load >= 30 && 
+			this_zen->cur_cpu_load < 50) 
 				this_zen->ideal_speed = ideal_step_two;
 
-		if (this_zen->ideal_speed != ideal_step_three && this_zen->cur_cpu_load > (dynamics_thd - 60) && 
-			this_zen->cur_cpu_load < (dynamics_thd - 40))
+		if (this_zen->ideal_speed != ideal_step_three && this_zen->cur_cpu_load >= 70 && 
+			this_zen->cur_cpu_load < 90)
 				this_zen->ideal_speed = ideal_step_three;
 
-		if (this_zen->ideal_speed != ideal_step_four && this_zen->cur_cpu_load > (dynamics_thd - 40)) 
+		if (this_zen->ideal_speed != ideal_step_four && this_zen->cur_cpu_load >= 90) 
 			this_zen->ideal_speed = ideal_step_four; 
-		
-		if (policy->max > pulse_freq && this_zen->ideal_speed != pulse_freq &&
-			this_zen->cur_cpu_load > (dynamics_thd - 14))
-			this_zen->ideal_speed = pulse_freq;
 
 		if (this_zen->cur_cpu_load < 90) {
-			up_rate_us = (110 - this_zen->cur_cpu_load)*dynamics_thd*8; 
+			up_rate_us = (110 - this_zen->cur_cpu_load)*600; 
 		} else {
 			up_rate_us = 16000;
 		}
 	}
 	old_load = this_zen->cur_cpu_load;
-}
-
-inline static void zen_dynamics_update(void) {
-	dynamics_thd = 100-perf_bias;
-	min_cpu_load = dynamics_thd - 25;
-	ramp_up_step = 28000*(102-dynamics_thd);
 }
 
 inline static unsigned int validate_freq(struct cpufreq_policy *policy, int freq) {
@@ -308,7 +292,7 @@ static void cpufreq_zen_timer(unsigned long cpu)
 	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
 	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
 	// for at least up_rate_us:
-	if (cpu_load > 95 || delta_idle == 0)
+	if (cpu_load > 90 || delta_idle == 0)
 	{
 		if (old_freq < policy->max &&
 			 (old_freq < this_zen->ideal_speed || delta_idle == 0 ||
@@ -322,7 +306,7 @@ static void cpufreq_zen_timer(unsigned long cpu)
 		else this_zen->ramp_dir = 0;
 	}
 	// Similarly for scale down: load should be below min
-	else if (cpu_load < min_cpu_load && old_freq > policy->min &&
+	else if (cpu_load < 70 && old_freq > policy->min &&
 		 (old_freq > this_zen->ideal_speed ||
 		  cputime64_sub(update_time, this_zen->freq_change_time) >= 10000))
 	{
@@ -407,7 +391,7 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 				// ramp down logic:
 				if (old_freq > this_zen->ideal_speed) {
 					new_freq = this_zen->ideal_speed;
-					relation = CPUFREQ_RELATION_H;
+					relation = CPUFREQ_RELATION_L;
 				}
 				else {
 					new_freq = policy->min;
@@ -557,62 +541,6 @@ static ssize_t store_ramp_up_step(struct kobject *kobj, struct attribute *attr, 
 	return count;
 }
 
-static ssize_t show_dynamics_thd(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", dynamics_thd);
-}
-
-static ssize_t store_dynamics_thd(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input > 0 && input <= 100) {
-		dynamics_thd = input;
-		zen_dynamics_update();
-	}
-	return count;
-}
-
-static ssize_t show_perf_bias(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", perf_bias);
-}
-
-static ssize_t store_perf_bias(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input > 0 && input <= 15) {
-		perf_bias = input;
-		zen_dynamics_update();
-	}
-	return count;
-}
-
-static ssize_t show_sleep_thd(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", sleep_thd);
-}
-
-static ssize_t store_sleep_thd(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res < 0)
-		return -EINVAL;
-	if (input > 0 && input <= 100) {
-		sleep_thd = input;
-	}
-	return count;
-}
-
 static ssize_t show_min_cpu_load(struct kobject *kobj, struct attribute *attr, char *buf)
 {
 	return sprintf(buf, "%u\n", min_cpu_load);
@@ -646,9 +574,6 @@ define_global_rw_attr(ideal_step_three);
 define_global_rw_attr(ideal_step_four);
 define_global_ro_attr(sample_rate_jiffies);
 define_global_ro_attr(ramp_up_step);
-define_global_ro_attr(dynamics_thd);
-define_global_rw_attr(perf_bias);
-define_global_rw_attr(sleep_thd);
 define_global_ro_attr(min_cpu_load);
 
 static struct attribute * zen_attributes[] = {
@@ -659,9 +584,6 @@ static struct attribute * zen_attributes[] = {
 	&ideal_step_four_attr.attr,
 	&sample_rate_jiffies_attr.attr,
 	&ramp_up_step_attr.attr,
-	&dynamics_thd_attr.attr,
-	&perf_bias_attr.attr,
-	&sleep_thd_attr.attr,
 	&min_cpu_load_attr.attr,
 	NULL,
 };
@@ -841,7 +763,7 @@ static void zen_suspend(int cpu, int suspend)
 		this_zen->freq_change_time_in_idle =
 			get_cpu_idle_time_us(cpu,&this_zen->freq_change_time);
 	} else {
-		this_zen->ideal_speed = pulse_freq;
+		this_zen->ideal_speed = policy->max;
 		up_rate_us = 20000;
 
 		new_freq = policy->max;
@@ -889,12 +811,9 @@ static int __init cpufreq_gov_zen_init(void)
 	ideal_step_three = DEFAULT_IDEAL_STEP_THREE;
 	ideal_step_four = DEFAULT_IDEAL_STEP_FOUR;
 	sample_rate_jiffies = DEFAULT_SAMPLE_RATE_JIFFIES;
-	perf_bias = DEFAULT_PERFORMANCE_BIAS;
-	dynamics_thd = 100-perf_bias;
-	sleep_thd = DEFAULT_SLEEP_THRESHOLD;
-	old_load = 100-perf_bias;
-	ramp_up_step = 28000*(102-dynamics_thd);
-	min_cpu_load = dynamics_thd-25;
+	old_load = 99;
+	ramp_up_step = 130000;
+	min_cpu_load = 79;
 	touch_load_duration = TOUCH_LOAD_DURATION;
 	touch_load = TOUCH_LOAD;
 	touch_load_threshold = TOUCH_LOAD_THRESHOLD;
