@@ -49,10 +49,10 @@ static int lowmem_adj_size = 6;
 static size_t lowmem_minfree[6] = {
 	1536,
 	3072,
-	10240,
-	12800,
-	15360,
 	19200,
+	20480,
+	23040,
+	25600,
 };
 static int lowmem_minfree_size = 6;
 

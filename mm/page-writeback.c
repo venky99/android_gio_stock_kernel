@@ -60,7 +60,7 @@ static inline long sync_writeback_pages(unsigned long dirtied)
 /*
  * Start background writeback (via writeback threads) at this percentage
  */
-int dirty_background_ratio = 1;
+int dirty_background_ratio = 80;
 
 /*
  * dirty_background_bytes starts at 0 (disabled) so that it is a function of
@@ -77,7 +77,7 @@ int vm_highmem_is_dirtyable;
 /*
  * The generator of dirty data starts writeback at this percentage
  */
-int vm_dirty_ratio = 2;
+int vm_dirty_ratio = 90;
 
 /*
  * vm_dirty_bytes starts at 0 (disabled) so that it is a function of
@@ -88,23 +88,23 @@ unsigned long vm_dirty_bytes;
 /*
  * The interval between `kupdate'-style writebacks
  */
-unsigned int dirty_writeback_interval = 300; /* centiseconds */
+unsigned int dirty_writeback_interval = 2000; /* centiseconds */
 
 /*
  * The longest time for which data is allowed to remain dirty
  */
-unsigned int dirty_expire_interval = 50; /* centiseconds */
+unsigned int dirty_expire_interval = 1000; /* centiseconds */
 
 /*
  * Flag that makes the machine dump writes/reads and block dirtyings.
  */
-int block_dump;
+int block_dump = 0;
 
 /*
  * Flag that puts the machine in "laptop mode". Doubles as a timeout in jiffies:
  * a full sync is triggered after this time elapses without any disk activity.
  */
-int laptop_mode;
+int laptop_mode = 5;
 
 EXPORT_SYMBOL(laptop_mode);
 
