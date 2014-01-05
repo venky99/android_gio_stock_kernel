@@ -517,7 +517,7 @@ static unsigned int uksm_sleep_saved;
 /* Max percentage of cpu utilization ksmd can take to scan in one batch */
 static unsigned int uksm_max_cpu_percentage;
 
-static int uksm_cpu_governor;
+static int uksm_cpu_governor = 2;
 
 static char *uksm_cpu_governor_str[4] = { "full", "medium", "low", "quiet" };
 
@@ -530,7 +530,7 @@ struct uksm_cpu_preset_s {
 struct uksm_cpu_preset_s uksm_cpu_preset[4] = {
 	{ {20, 40, -2500, -10000}, {1000, 500, 200, 50}, 95},
 	{ {20, 30, -2500, -10000}, {1000, 500, 400, 100}, 50},
-	{ {10, 20, -5000, -10000}, {1500, 1000, 1000, 250}, 20},
+	{ {10, 20, -5000, -10000}, {1500, 1000, 1000, 250}, 10},
 	{ {10, 20, 40, 75}, {2000, 1000, 1000, 1000}, 1},
 };
 
@@ -562,7 +562,7 @@ static unsigned long long uksm_sleep_times;
 
 #define UKSM_RUN_STOP	0
 #define UKSM_RUN_MERGE	1
-static unsigned int uksm_run = 0;
+static unsigned int uksm_run = 1;
 
 static DECLARE_WAIT_QUEUE_HEAD(uksm_thread_wait);
 static DEFINE_MUTEX(uksm_thread_mutex);
