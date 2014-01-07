@@ -1,6 +1,10 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35.7
+<<<<<<< HEAD:arch/arm/configs/cooper_rev03_defconfig
+=======
+# Tue Jan  7 16:18:48 2014
+>>>>>>> 520e6e7... Update configs for zRAM on KitKat:arch/arm/configs/cyanogenmod_callisto_defconfig
 #
 # [ latin_ui byunghun.choi 2010.12.01 For latin build
 CONFIG_SAMSUNG_LTN_COMMON=n
@@ -84,11 +88,17 @@ CONFIG_CGROUP_FREEZER=y
 # CONFIG_CPUSETS is not set
 CONFIG_CGROUP_CPUACCT=y
 CONFIG_RESOURCE_COUNTERS=y
-# CONFIG_CGROUP_MEM_RES_CTLR is not set
+CONFIG_CGROUP_MEM_RES_CTLR=y
+CONFIG_CGROUP_MEM_RES_CTLR_SWAP=y
 CONFIG_CGROUP_SCHED=y
 CONFIG_FAIR_GROUP_SCHED=y
 CONFIG_RT_GROUP_SCHED=y
 # CONFIG_BLK_CGROUP is not set
+<<<<<<< HEAD:arch/arm/configs/cooper_rev03_defconfig
+=======
+# CONFIG_SCHED_AUTOGROUP is not set
+CONFIG_MM_OWNER=y
+>>>>>>> 520e6e7... Update configs for zRAM on KitKat:arch/arm/configs/cyanogenmod_callisto_defconfig
 # CONFIG_SYSFS_DEPRECATED_V2 is not set
 CONFIG_RELAY=y
 # CONFIG_NAMESPACES is not set
