@@ -517,7 +517,7 @@ static unsigned int uksm_sleep_saved;
 /* Max percentage of cpu utilization ksmd can take to scan in one batch */
 static unsigned int uksm_max_cpu_percentage;
 
-static int uksm_cpu_governor = 2;
+static int uksm_cpu_governor = 3;
 
 static char *uksm_cpu_governor_str[4] = { "full", "medium", "low", "quiet" };
 
@@ -781,7 +781,7 @@ static void uksm_drop_anon_vma(struct rmap_item *rmap_item)
 {
 	struct anon_vma *anon_vma = rmap_item->anon_vma;
 
-	if (atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
+	if (atomic_dec_and_lock(&anon_vma->ksm_refcount, &anon_vma->lock)) {
                 int empty = list_empty(&anon_vma->head);
                 spin_unlock(&anon_vma->lock);
                 if (empty)
@@ -2433,7 +2433,7 @@ static void hold_anon_vma(struct rmap_item *rmap_item,
 			  struct anon_vma *anon_vma)
 {
 	rmap_item->anon_vma = anon_vma;
-        atomic_inc(&anon_vma->external_refcount);
+        atomic_inc(&anon_vma->ksm_refcount);
 }
 
 
@@ -5500,7 +5500,7 @@ static int __init uksm_init(void)
 	struct task_struct *uksm_thread;
 	int err;
 
-	uksm_sleep_jiffies = msecs_to_jiffies(1000);
+	uksm_sleep_jiffies = msecs_to_jiffies(5000);
 	uksm_sleep_saved = uksm_sleep_jiffies;
 
 	slot_tree_init();

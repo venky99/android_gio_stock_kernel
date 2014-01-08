@@ -533,9 +533,6 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
  * to avoid deadlock, ksm_remove_vma must be done before any spin_lock is
  * acquired
  */
-#ifdef CONFIG_KSM
-       ksm_remove_vma(vma);
-#endif
 
 	if (next && !insert) {
 		struct vm_area_struct *exporter = NULL;
@@ -979,7 +976,7 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 {
 	struct mm_struct * mm = current->mm;
 	struct inode *inode;
-	unsigned int vm_flags;
+	long unsigned int vm_flags;
 	int error;
 	unsigned long reqprot = prot;
 
@@ -1454,7 +1451,7 @@ full_search:
 		addr = vma->vm_end;
 	}
 }
-#endif
+#endif	
 
 void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
@@ -2009,10 +2006,6 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 			((addr - new->vm_start) >> PAGE_SHIFT), new);
 	else
 		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
-		
-#ifdef CONFIG_KSM
-       ksm_vma_add_new(new);
-#endif
 
 	uksm_vma_add_new(new);
 
@@ -2048,8 +2041,6 @@ int split_vma(struct mm_struct *mm, struct vm_area_struct *vma,
 		return -ENOMEM;
 
 	return __split_vma(mm, vma, addr, new_below);
-
-	return 0;
 }
 
 /* Munmap is split into 2 main parts -- this part which finds
@@ -2284,12 +2275,6 @@ void exit_mmap(struct mm_struct *mm)
    */
 	down_write(&mm->mmap_sem);
 
-	/*
-	 * Taking write lock on mmap_sem does not harm others,
-	 * but it's crucial for uksm to avoid races.
-	 */
-	down_write(&mm->mmap_sem);
-
 	if (mm->locked_vm) {
 		vma = mm->mmap;
 		while (vma) {
@@ -2323,11 +2308,6 @@ void exit_mmap(struct mm_struct *mm)
 	while (vma)
 		vma = remove_vma(vma);
 		
-	mm->mmap = NULL;
-	mm->mm_rb = RB_ROOT;
-	mm->mmap_cache = NULL;
-	up_write(&mm->mmap_sem);
-
 	mm->mmap = NULL;
 	mm->mm_rb = RB_ROOT;
 	mm->mmap_cache = NULL;
@@ -2531,10 +2511,6 @@ int install_special_mapping(struct mm_struct *mm,
 
 	perf_event_mmap(vma);
 	uksm_vma_add_new(vma);
-
-#ifdef CONFIG_KSM
-       ksm_vma_add_new(vma);
-#endif
 
 	return 0;
 }
