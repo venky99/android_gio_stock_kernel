@@ -177,7 +177,6 @@ static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
 				input_event(sweep_pwrdev, EV_KEY, KEY_END, 0);
 				input_event(sweep_pwrdev, EV_SYN, 0, 0);
 				reset_triggers();
-				scr_suspended = false;
 				msleep(40);
 				mutex_unlock(&pwrlock);
 			}
@@ -474,6 +473,27 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 			input_mt_sync(ts->input_dev);
+			if (i == 0 && fingerInfo[i].status == 0 && fingerInfo[i].y <= 12) {
+				reset_triggers();
+				if (doubletap) {
+					tap[0] = tap[1];
+					tap[1] = ktime_to_ms(ktime_get());
+					tap[2] = tap[1]-tap[0];
+					
+					pos.x[0] = pos.x[1];
+					pos.x[1] = fingerInfo[i].x;
+					pos.x[2] = ABS(pos.x[1], pos.x[0]);
+					
+					pos.y[0] = pos.y[1];
+					pos.y[1] = fingerInfo[i].y;
+					pos.y[2] = ABS(pos.y[1], pos.y[0]);
+					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
+							sweep2wake_pwrtrigger(1);
+							scr_suspended = true;
+						
+					}
+				}
+			}
 	} else {
 		if ( i == 0 ) {
 			if (fingerInfo[i].status == 1) {
@@ -487,6 +507,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 								pulse = true;
 								if (fingerInfo[i].x > wake_end) {
 									sweep2wake_pwrtrigger(1);
+									scr_suspended = false;
 								}
 							} else {
 								reset_triggers();
@@ -509,9 +530,10 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					pos.y[1] = fingerInfo[i].y;
 					pos.y[2] = ABS(pos.y[1], pos.y[0]);
 					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
-						pulse = true;
-						if (fingerInfo[i].y <= 180) 
+						if (fingerInfo[i].y <= 180) {
 							sweep2wake_pwrtrigger(1);
+							scr_suspended = false;
+						}
 						else 
 							sweep2wake_pwrtrigger(6);
 						

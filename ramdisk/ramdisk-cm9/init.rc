@@ -70,6 +70,7 @@ loglevel 3
     write /proc/sys/kernel/randomize_va_space 2
     
     chmod 0755 /sbin/40a2sd
+    chmod 0755 /sbin/haveged
 
 # Create cgroup mount points for process groups
     mkdir /dev/cpuctl
@@ -503,4 +504,8 @@ service dumpstate /system/bin/dumpstate -s
 
 service a2sd /sbin/40a2sd
     class main
+    oneshot
+    
+service haveged /sbin/haveged
+    class late_start
     oneshot
