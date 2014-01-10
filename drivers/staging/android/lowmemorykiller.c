@@ -61,10 +61,10 @@ static int lowmem_adj_size = 4;
 static int lowmem_minfree[6] = {
 	2048,
 	3072,
-	8192,
 	10240,
 	12800,
 	15360,
+	19200,
 };
 static int lowmem_minfree_size = 6;
 static int lmk_fast_run = 1;
