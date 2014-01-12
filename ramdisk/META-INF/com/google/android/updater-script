@@ -1,4 +1,4 @@
-ui_print("Installing cleanKernel");
+ui_print("Installing elementaryKernel");
 show_progress(5, 50);
 assert(package_extract_file("boot.img", "/tmp/boot.img"),
        write_raw_image("/tmp/boot.img", "boot"),
@@ -17,5 +17,5 @@ show_progress(40, 50);
 show_progress(45, 50);
 unmount("/system");
 show_progress(50, 50);
-ui_print("cleanKernel Installed");
+ui_print("elementaryKernel Installed");
 
