@@ -132,9 +132,9 @@ static DEFINE_MUTEX(tsp_sleep_lock);
 unsigned int touch_state_val;
 
 /* Sweep to wake */
-static cputime64_t tap[3] = {0};
-static short prevx = 0;
-static bool trigger = false;
+cputime64_t tap[3] = {0};
+short prevx = 0;
+bool trigger = false;
 bool pulse = false;
 bool disabled = false;
 bool scr_suspended = false;
