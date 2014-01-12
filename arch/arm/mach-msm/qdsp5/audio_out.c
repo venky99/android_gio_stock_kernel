@@ -806,7 +806,7 @@ static long audpp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		audio_enable_eq(audio_copp, enable);
 		enable = (enable_mask & IIR_ENABLE) ? 1 : 0;
 		audio_enable_rx_iir(audio_copp, enable);
-		enable = (enable_mask & QCONCERT_PLUS_ENABLE) ? 1 : 0;
+		enable = 1;
 		audio_enable_qconcert_plus(audio_copp, enable);
 		break;
 

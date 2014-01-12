@@ -8,7 +8,7 @@ cd ramdisk
 
 sleep 1
 
-zip -0 cm9kernel.zip -r META-INF boot.img
+zip -0 cm9kernel.zip -r META-INF -r system boot.img
 
 sleep 2
 

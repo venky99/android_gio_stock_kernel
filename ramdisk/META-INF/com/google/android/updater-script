@@ -9,7 +9,7 @@ show_progress(15, 50);
 run_program("/sbin/busybox","mount","-o","rw,remount","/system");
 show_progress(20, 50);
 ui_print("Installing modified keylayout");
-#package_extract_dir("system/usr", "/system/usr");
+package_extract_dir("system/usr", "/system/usr");
 show_progress(25, 50);
 show_progress(30, 50);
 show_progress(35, 50);
