@@ -2109,11 +2109,7 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
 	 */
 	if (!PageSwapCache(page))
 		goto charge_cur_mm;
-<<<<<<< HEAD
 	mem = try_get_mem_cgroup_from_page(page);
-=======
-	mem = try_get_mem_cgroup_from_swapcache(page);
->>>>>>> b8944a4... uksm: Ported Ultra-KSM 0.1.0
 	if (!mem)
 		goto charge_cur_mm;
 	*ptr = mem;
