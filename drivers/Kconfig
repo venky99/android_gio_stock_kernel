@@ -124,6 +124,4 @@ source "drivers/dpram/Kconfig"
 
 #source "drivers/param/Kconfig"
 
-source "drivers/zram/Kconfig"
-
 endmenu
