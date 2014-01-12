@@ -295,6 +295,22 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	}
 }
 
+void vibe(int value)
+{
+	hrtimer_cancel(&vibe_timer);
+
+	if (value != 0)
+	{
+		pmic_vibrator_on();
+
+		hrtimer_start(&vibe_timer,
+			      ktime_set(value / 1000, (value % 1000) * 1000000),
+			      HRTIMER_MODE_REL);
+	} else
+		pmic_vibrator_off();
+}
+	
+
 static int vibrator_get_time(struct timed_output_dev *dev)
 {
 	if (hrtimer_active(&vibe_timer)) {

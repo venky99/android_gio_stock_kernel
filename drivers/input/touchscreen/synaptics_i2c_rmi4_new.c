@@ -135,7 +135,6 @@ unsigned int touch_state_val;
 cputime64_t tap[3] = {0};
 short prevx = 0;
 bool trigger = false;
-bool pulse = false;
 bool disabled = false;
 bool scr_suspended = false;
 struct position {
@@ -159,49 +158,60 @@ void reset_triggers(void)
 {
 	mutex_lock(&trigglock);
 	trigger = false;
-	pulse = false;
 	prevx = 0;
 	mutex_unlock(&trigglock);
 }
 
-static inline void sweep2wake_pwrtrigger(unsigned int cmd) {
-	mutex_lock(&pwrlock);
+extern void vibe(int value);
 
-	switch (cmd) {
+static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
+        if (!mutex_trylock(&pwrlock))
+                return;
+		input_event(sweep_pwrdev, EV_KEY, KEY_END, 1);
+		input_event(sweep_pwrdev, EV_SYN, 0, 0);
+		msleep(10);
+		input_event(sweep_pwrdev, EV_KEY, KEY_END, 0);
+		input_event(sweep_pwrdev, EV_SYN, 0, 0);
+		reset_triggers();
+		msleep(40);
+		mutex_unlock(&pwrlock);
+        return;
+}
 
-		case 1:
+static void sweep2wake_playpause(struct work_struct * sweep2wake_playpause_work) {
+        if (!mutex_trylock(&pwrlock))
+                return;
+		input_event(sweep_pwrdev, EV_KEY, KEY_PLAYPAUSE, 1);
+		input_event(sweep_pwrdev, EV_SYN, 0, 0);
+		msleep(10);
+		input_event(sweep_pwrdev, EV_KEY, KEY_PLAYPAUSE, 0);
+		input_event(sweep_pwrdev, EV_SYN, 0, 0);
+		reset_triggers();
+		msleep(40);
+		mutex_unlock(&pwrlock);
+        return;
+}
+
+static DECLARE_WORK(sweep2wake_presspwr_work, sweep2wake_presspwr);
+static DECLARE_WORK(sweep2wake_playpause_work, sweep2wake_playpause);
+
+/* PowerKey trigger */
+static void sweep2wake_pwrtrigger(unsigned int cmd) {
+		vibe(30);
+		switch (cmd) {
+			case 1:
 			{
-				input_event(sweep_pwrdev, EV_KEY, KEY_END, 1);
-				input_event(sweep_pwrdev, EV_SYN, 0, 0);
-				msleep(10);
-				input_event(sweep_pwrdev, EV_KEY, KEY_END, 0);
-				input_event(sweep_pwrdev, EV_SYN, 0, 0);
-				reset_triggers();
-				msleep(40);
-				mutex_unlock(&pwrlock);
-			}
-			break;
-
-		case 6:
+       			schedule_work(&sweep2wake_presspwr_work);
+       		}
+       		break;
+       		
+       		case 2:
 			{
-				input_event(sweep_pwrdev, EV_KEY, KEY_PLAYPAUSE, 1);
-				input_event(sweep_pwrdev, EV_SYN, 0, 0);
-				msleep(10);
-				input_event(sweep_pwrdev, EV_KEY, KEY_PLAYPAUSE, 0);
-				input_event(sweep_pwrdev, EV_SYN, 0, 0);
-				reset_triggers();
-				msleep(40);
-				mutex_unlock(&pwrlock);
-			}
-			break;
-
-		default:
-			{
-				mutex_unlock(&pwrlock);
-			}
-			break;
-		}
-	return;
+       			schedule_work(&sweep2wake_playpause_work);
+       		}
+       		break;
+       	}
+        return;
 }
 
 /* Sweep2wake */
@@ -504,7 +514,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						if (trigger) {
 							if (fingerInfo[i].x >= prevx) {
 								prevx = fingerInfo[i].x;
-								pulse = true;
 								if (fingerInfo[i].x > wake_end) {
 									sweep2wake_pwrtrigger(1);
 									scr_suspended = false;
@@ -535,7 +544,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 							scr_suspended = false;
 						}
 						else 
-							sweep2wake_pwrtrigger(6);
+							sweep2wake_pwrtrigger(2);
 						
 					}
 				}

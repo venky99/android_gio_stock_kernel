@@ -363,9 +363,7 @@ static void taos_work_func_prox(struct work_struct *work)
 		}
 
 		if (scr_suspended) {
-			pulse = true;
 			out_of_pocket();
-			pulse = false;
 		}
 		mutex_unlock(&prossimo_lock);
 	}

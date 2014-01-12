@@ -371,9 +371,6 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 		if (!suspended)
 			zen_dynamics_awake(this_zen,policy);
 
-		if (pulse)
-			new_freq = pulse_freq;
-		else {
 			if (old_freq != policy->cur) {
 				// frequency was changed by someone else?
 				new_freq = old_freq;
@@ -402,7 +399,6 @@ static void cpufreq_zen_freq_change_time_work(struct work_struct *work)
 				// This may also happen if we refused to ramp up because the nr_running()==1
 				new_freq = old_freq;
 			}
-		}
 
 		// do actual ramp up (returns 0, if frequency change failed):
 		new_freq = target_freq(policy,this_zen,new_freq,old_freq,relation);
