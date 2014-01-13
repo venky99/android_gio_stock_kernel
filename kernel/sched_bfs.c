@@ -125,7 +125,7 @@
 #define NS_TO_MS(TIME)		((TIME) >> 20)
 #define NS_TO_US(TIME)		((TIME) >> 10)
 
-#define RESCHED_US	(100) /* Reschedule if less than this many Î¼s left */
+#define RESCHED_US	(100) /* Reschedule if less than this many μs left */
 
 /*
  * This is the time all tasks within the same priority round robin.
@@ -196,7 +196,7 @@ struct rq {
 #endif
 #endif
 
-	struct task_struct *curr, *idle, *preempt;
+	struct task_struct *curr, *idle, *stop;
 	struct mm_struct *prev_mm;
 
 	/* Stored data about rq->curr to work outside grq lock */
@@ -331,19 +331,23 @@ static inline void update_rq_clock(struct rq *rq);
 
 /*
  * Sanity check should sched_clock return bogus values. We make sure it does
- * not appear to go backwards, and use jiffies to determine the maximum it
- * could possibly have increased. At least 1us will have always passed so we
- * use that when we don't trust the difference.
+ * not appear to go backwards, and use jiffies to determine the maximum and
+ * minimum it could possibly have increased, and round down to the nearest
+ * jiffy when it falls outside this.
  */
 static inline void niffy_diff(s64 *niff_diff, int jiff_diff)
 {
-	unsigned long max_diff;
+	unsigned long min_diff, max_diff;
 
+	if (jiff_diff > 1)
+		min_diff = JIFFIES_TO_NS(jiff_diff - 1);
+	else
+		min_diff = 1;
 	/*  Round up to the nearest tick for maximum */
 	max_diff = JIFFIES_TO_NS(jiff_diff + 1);
 
-	if (unlikely(*niff_diff < 1 || *niff_diff > max_diff))
-		*niff_diff = US_TO_NS(1);
+	if (unlikely(*niff_diff < min_diff || *niff_diff > max_diff))
+		*niff_diff = min_diff;
 }
 
 #ifdef CONFIG_SMP
@@ -765,18 +769,6 @@ static inline int task_prio_ratio(struct task_struct *p)
 static inline int task_timeslice(struct task_struct *p)
 {
 	return (rr_interval * task_prio_ratio(p) / 128);
-}
-
-static void resched_task(struct task_struct *p);
-
-static inline void preempt_rq(struct rq *rq, struct task_struct *p)
-{
-	rq->preempt = p;
-	/* We set the runqueue's apparent priority to the task that will
-	 * replace the current one in case something else tries to preempt
-	 * this runqueue before p gets scheduled */
-	rq->rq_prio = p->prio;
-	resched_task(rq->curr);
 }
 
 #ifdef CONFIG_SMP
@@ -1338,7 +1330,10 @@ retry_rq:
 		 * yield - it could be a while.
 		 */
 		if (unlikely(on_rq)) {
-			schedule_timeout_uninterruptible(1);
+			ktime_t to = ktime_set(0, NSEC_PER_SEC / HZ);
+
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			schedule_hrtimeout(&to, HRTIMER_MODE_REL);
 			continue;
 		}
 
@@ -2219,7 +2214,7 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
  * On each tick, see what percentage of that tick was attributed to each
  * component and add the percentage to the _pc values. Once a _pc value has
  * accumulated one tick's worth, account for that. This means the total
- * percentage of load components will always be 100 per tick.
+ * percentage of load components will always be 128 (pseudo 100) per tick.
  */
 static void pc_idle_time(struct rq *rq, unsigned long pc)
 {
@@ -2228,14 +2223,14 @@ static void pc_idle_time(struct rq *rq, unsigned long pc)
 
 	if (atomic_read(&rq->nr_iowait) > 0) {
 		rq->iowait_pc += pc;
-		if (rq->iowait_pc >= 100) {
-			rq->iowait_pc -= 100;
+		if (rq->iowait_pc >= 128) {
+			rq->iowait_pc %= 128;
 			cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
 		}
 	} else {
 		rq->idle_pc += pc;
-		if (rq->idle_pc >= 100) {
-			rq->idle_pc -= 100;
+		if (rq->idle_pc >= 128) {
+			rq->idle_pc %= 128;
 			cpustat->idle = cputime64_add(cpustat->idle, tmp);
 		}
 	}
@@ -2250,8 +2245,8 @@ pc_system_time(struct rq *rq, struct task_struct *p, int hardirq_offset,
 	cputime64_t tmp = cputime_to_cputime64(cputime_one_jiffy);
 
 	p->stime_pc += pc;
-	if (p->stime_pc >= 100) {
-		p->stime_pc -= 100;
+	if (p->stime_pc >= 128) {
+		p->stime_pc %= 128;
 		p->stime = cputime_add(p->stime, cputime_one_jiffy);
 		p->stimescaled = cputime_add(p->stimescaled, one_jiffy_scaled);
 		account_group_system_time(p, cputime_one_jiffy);
@@ -2261,20 +2256,20 @@ pc_system_time(struct rq *rq, struct task_struct *p, int hardirq_offset,
 
 	if (hardirq_count() - hardirq_offset) {
 		rq->irq_pc += pc;
-		if (rq->irq_pc >= 100) {
-			rq->irq_pc -= 100;
+		if (rq->irq_pc >= 128) {
+			rq->irq_pc %= 128;
 			cpustat->irq = cputime64_add(cpustat->irq, tmp);
 		}
 	} else if (softirq_count()) {
 		rq->softirq_pc += pc;
-		if (rq->softirq_pc >= 100) {
-			rq->softirq_pc -= 100;
+		if (rq->softirq_pc >= 128) {
+			rq->softirq_pc %= 128;
 			cpustat->softirq = cputime64_add(cpustat->softirq, tmp);
 		}
 	} else {
 		rq->system_pc += pc;
-		if (rq->system_pc >= 100) {
-			rq->system_pc -= 100;
+		if (rq->system_pc >= 128) {
+			rq->system_pc %= 128;
 			cpustat->system = cputime64_add(cpustat->system, tmp);
 		}
 	}
@@ -2288,8 +2283,8 @@ static void pc_user_time(struct rq *rq, struct task_struct *p,
 	cputime64_t tmp = cputime_to_cputime64(cputime_one_jiffy);
 
 	p->utime_pc += pc;
-	if (p->utime_pc >= 100) {
-		p->utime_pc -= 100;
+	if (p->utime_pc >= 128) {
+		p->utime_pc %= 128;
 		p->utime = cputime_add(p->utime, cputime_one_jiffy);
 		p->utimescaled = cputime_add(p->utimescaled, one_jiffy_scaled);
 		account_group_user_time(p, cputime_one_jiffy);
@@ -2299,21 +2294,24 @@ static void pc_user_time(struct rq *rq, struct task_struct *p,
 
 	if (TASK_NICE(p) > 0 || idleprio_task(p)) {
 		rq->nice_pc += pc;
-		if (rq->nice_pc >= 100) {
-			rq->nice_pc -= 100;
+		if (rq->nice_pc >= 128) {
+			rq->nice_pc %= 128;
 			cpustat->nice = cputime64_add(cpustat->nice, tmp);
 		}
 	} else {
 		rq->user_pc += pc;
-		if (rq->user_pc >= 100) {
-			rq->user_pc -= 100;
+		if (rq->user_pc >= 128) {
+			rq->user_pc %= 128;
 			cpustat->user = cputime64_add(cpustat->user, tmp);
 		}
 	}
 }
 
-/* Convert nanoseconds to percentage of one tick. */
-#define NS_TO_PC(NS)	(NS * 100 / JIFFY_NS)
+/*
+ * Convert nanoseconds to pseudo percentage of one tick. Use 128 for fast
+ * shifts instead of 100
+ */
+#define NS_TO_PC(NS)	(NS * 128 / JIFFY_NS)
 
 /*
  * This is called on clock ticks and on context switches.
@@ -2336,12 +2334,12 @@ update_cpu_clock(struct rq *rq, struct task_struct *p, int tick)
 		int user_tick = user_mode(get_irq_regs());
 
 		/* Accurate tick timekeeping */
-		rq->account_pc += account_pc - 100;
+		rq->account_pc += account_pc - 128;
 		if (rq->account_pc < 0) {
 			/*
 			 * Small errors in micro accounting may not make the
-			 * accounting add up to 100% each tick so we keep track
-			 * of the percentage and round it up when less than 100
+			 * accounting add up to 128 each tick so we keep track
+			 * of the percentage and round it up when less than 128
 			 */
 			account_pc += -rq->account_pc;
 			rq->account_pc = 0;
@@ -2641,7 +2639,7 @@ static void task_running_tick(struct rq *rq)
 	 * presence of true RT tasks we account those as iso_ticks as well.
 	 */
 	if ((rt_queue(rq) || (iso_queue(rq) && !grq.iso_refractory))) {
-		if (grq.iso_ticks <= (ISO_PERIOD * 100) - 100)
+		if (grq.iso_ticks <= (ISO_PERIOD * 128) - 128)
 			iso_tick();
 	} else
 		no_iso_tick();
@@ -2666,7 +2664,7 @@ static void task_running_tick(struct rq *rq)
 	 * Tasks that were scheduled in the first half of a tick are not
 	 * allowed to run into the 2nd half of the next tick if they will
 	 * run out of time slice in the interim. Otherwise, if they have
-	 * less than RESCHED_US Î¼s of time slice left they will be rescheduled.
+	 * less than RESCHED_US μs of time slice left they will be rescheduled.
 	 */
 	if (rq->dither) {
 		if (rq->rq_time_slice > HALF_JIFFY_US)
@@ -3911,8 +3909,6 @@ __setscheduler(struct task_struct *p, struct rq *rq, int policy, int prio)
 {
 	int oldrtprio, oldprio;
 
-	BUG_ON(task_queued(p));
-
 	p->policy = policy;
 	oldrtprio = p->rt_priority;
 	p->rt_priority = prio;
@@ -4003,6 +3999,9 @@ recheck:
 	 */
 	if (user && !capable(CAP_SYS_NICE)) {
 		if (is_rt_policy(policy)) {
+			unsigned long rlim_rtprio =
+					task_rlimit(p, RLIMIT_RTPRIO);
+
 			/* can't set/change the rt policy */
 			if (policy != p->policy && !rlim_rtprio)
 				return -EPERM;
@@ -4065,6 +4064,27 @@ recheck:
 	 * runqueue lock must be held.
 	 */
 	rq = __task_grq_lock(p);
+
+	/*
+	 * Changing the policy of the stop threads its a very bad idea
+	 */
+	if (p == rq->stop) {
+		__task_grq_unlock();
+		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+		return -EINVAL;
+	}
+
+	/*
+	 * If not changing anything there's no need to proceed further:
+	 */
+	if (unlikely(policy == p->policy && (!is_rt_policy(policy) ||
+			param->sched_priority == p->rt_priority))) {
+
+		__task_grq_unlock();
+		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+		return 0;
+	}
+
 	/* recheck policy now with rq lock held */
 	if (unlikely(oldpolicy != -1 && oldpolicy != p->policy)) {
 		policy = oldpolicy = -1;
@@ -4683,11 +4703,11 @@ void show_state_filter(unsigned long state_filter)
 	printk(KERN_INFO
 		"  task                        PC stack   pid father\n");
 #endif
-	read_lock(&tasklist_lock);
+	rcu_read_lock();
 	do_each_thread(g, p) {
 		/*
 		 * reset the NMI-timeout, listing all files on a slow
-		 * console might take alot of time:
+		 * console might take a lot of time:
 		 */
 		touch_nmi_watchdog();
 		if (!state_filter || (p->state & state_filter))
@@ -4696,7 +4716,7 @@ void show_state_filter(unsigned long state_filter)
 
 	touch_all_softlockup_watchdogs();
 
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 	/*
 	 * Only show locks if all tasks are dumped:
 	 */
@@ -7112,7 +7132,6 @@ void __init sched_init(void)
 		rq->user_pc = rq->nice_pc = rq->softirq_pc = rq->system_pc =
 			      rq->iowait_pc = rq->idle_pc = 0;
 		rq->dither = false;
-		rq->preempt = NULL;
 #ifdef CONFIG_SMP
 		rq->sticky_task = NULL;
 		rq->last_niffy = 0;

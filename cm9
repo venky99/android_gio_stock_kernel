@@ -8,10 +8,10 @@ cd ramdisk
 
 sleep 1
 
-zip -0 cm9kernel.zip -r META-INF -r system boot.img
+zip -0 elementaryCM9.zip -r META-INF -r system boot.img
 
 sleep 2
 
-adb push cm9kernel.zip /sdcard/Kernel
+adb push elementaryCM9.zip /sdcard/Kernel
 
 cd ..

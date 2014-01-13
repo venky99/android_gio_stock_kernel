@@ -502,10 +502,6 @@ service dumpstate /system/bin/dumpstate -s
     socket dumpstate stream 0660 shell log
     disabled
     oneshot
-
-service a2sd /sbin/40a2sd
-    class main
-    oneshot
     
 service rand /sbin/rand
     class late_start
