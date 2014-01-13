@@ -1,0 +1,9 @@
+#!/system/bin/sh
+
+chmod 0644 /dev/frandom
+chmod 0644 /dev/erandom
+chmod 0644 /dev/urandom
+chmod 0644 /dev/random
+
+rm /dev/random && ln /dev/frandom /dev/random
+rm /dev/urandom && ln /dev/frandom /dev/urandom

@@ -1,0 +1,15 @@
+#!/bin/sh
+
+cp arch/arm/boot/zImage ramdisk
+
+cd ramdisk
+
+./repack_bootimg.pl zImage ramdisk-aosp boot.img
+
+sleep 1
+
+zip -0 elementaryAOSP.zip -r META-INF -r system boot.img
+
+sleep 2
+
+cd ..
