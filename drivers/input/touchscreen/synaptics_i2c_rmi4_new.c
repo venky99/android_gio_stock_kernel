@@ -163,7 +163,6 @@ void reset_triggers(void)
 }
 
 extern void vibe(int value);
-extern int isLandscape(void);
 
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
         if (!mutex_trylock(&pwrlock))
@@ -356,8 +355,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	uint8_t buf[12];// 02h ~ 0Dh
 	uint8_t i2c_addr = 0x02;
 	int i = 0;
-	bool inZone = false;
-	int scr_mode = 0;
 
 	struct synaptics_ts_data *ts = container_of(work, struct synaptics_ts_data, work);
 
@@ -486,14 +483,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 			input_mt_sync(ts->input_dev);
-			scr_mode = isLandscape();
-			if (scr_mode == 0)
-				inZone = (fingerInfo[i].y <= 12)?true:false;
-			else if (scr_mode == 1)
-					inZone = (fingerInfo[i].x >= 308)?true:false;
-				else
-					inZone = (fingerInfo[i].x <= 12)?true:false;
-			if (i == 0 && fingerInfo[i].status == 0 && inZone) {
+			if (i == 0 && fingerInfo[i].status == 0 && fingerInfo[i].y <= 12) {
 				reset_triggers();
 				if (doubletap) {
 					tap[0] = tap[1];
@@ -507,10 +497,9 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					pos.y[0] = pos.y[1];
 					pos.y[1] = fingerInfo[i].y;
 					pos.y[2] = ABS(pos.y[1], pos.y[0]);
-					
 					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
-								sweep2wake_pwrtrigger(1);
-								scr_suspended = true;
+							sweep2wake_pwrtrigger(1);
+							scr_suspended = true;
 						
 					}
 				}

@@ -56,7 +56,6 @@
 
 extern int board_hw_revision;
 bma222_t * g_bma222;
-int land = 0;
 
 enum BMA_SENSORS  
 {
@@ -889,11 +888,6 @@ static ssize_t acc_enable_show(struct device *dev, struct device_attribute *attr
 	return sprintf(buf, "%d\n", (g_bma222->state & ACC_ENABLED) ? 1 : 0);
 }
 
-int acc_enabled(void)
-{
-	return (g_bma222->state & ACC_ENABLED) ? 1 : 0;
-}
-
 
 static ssize_t acc_enable_store(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
 {
@@ -946,13 +940,6 @@ static void bma_work_func_acc(struct work_struct *work)
 		
 	err = bma222_read_accel_xyz(&acc);
 	
-	if (acc.x < 25 && acc.x > -25) {
-			if (acc.y < -48)
-				if (land != 1) land = 1;
-			if (acc.y > 48)
-				if (land != 2) land = 2;
-	} else if (land != 0) land = 0;
-	
 //	printk("##### %d,  %d,  %d\n", acc.x, acc.y, acc.z );
 
 	input_report_rel(g_bma222->acc_input_dev, REL_X, acc.x);
@@ -960,15 +947,6 @@ static void bma_work_func_acc(struct work_struct *work)
 	input_report_rel(g_bma222->acc_input_dev, REL_Z, acc.z);
 	input_sync(g_bma222->acc_input_dev);
 }
-
-int isLandscape(void)
-{
-	if (acc_enabled == 0)
-		return 0;
-	else
-		return land;
-}
-	
 
 /* This function is for light sensor.  It operates every a few seconds.
  * It asks for work to be done on a thread because i2c needs a thread
