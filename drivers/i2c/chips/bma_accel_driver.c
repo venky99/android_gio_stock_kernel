@@ -56,6 +56,7 @@
 
 extern int board_hw_revision;
 bma222_t * g_bma222;
+int land = 0;
 
 enum BMA_SENSORS  
 {
@@ -842,6 +843,7 @@ static void bma_acc_enable(void)
 {
 	printk("starting poll timer, delay %lldns\n", ktime_to_ns(g_bma222->acc_poll_delay));
 	hrtimer_start(&g_bma222->timer, g_bma222->acc_poll_delay, HRTIMER_MODE_REL);
+	land = 0;
 }
 
 static void bma_acc_disable(void)
@@ -849,6 +851,7 @@ static void bma_acc_disable(void)
 	printk("cancelling poll timer\n");
 	hrtimer_cancel(&g_bma222->timer);
 	cancel_work_sync(&g_bma222->work_acc);
+	land = 0;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -940,13 +943,26 @@ static void bma_work_func_acc(struct work_struct *work)
 		
 	err = bma222_read_accel_xyz(&acc);
 	
-//	printk("##### %d,  %d,  %d\n", acc.x, acc.y, acc.z );
+	if (acc.x < 25 && acc.x > -25) {
+			if (acc.y < -48)
+				if (land != 1) land = 1;
+			if (acc.y > 48)
+				if (land != 2) land = 2;
+	} else if (land != 0) land = 0;
+	
+	//printk("##### %d,  %d,  %d\n", acc.x, acc.y, acc.z );
 
 	input_report_rel(g_bma222->acc_input_dev, REL_X, acc.x);
 	input_report_rel(g_bma222->acc_input_dev, REL_Y, acc.y);
 	input_report_rel(g_bma222->acc_input_dev, REL_Z, acc.z);
 	input_sync(g_bma222->acc_input_dev);
 }
+
+int isLandscape(void)
+{
+	return land;
+}
+	
 
 /* This function is for light sensor.  It operates every a few seconds.
  * It asks for work to be done on a thread because i2c needs a thread

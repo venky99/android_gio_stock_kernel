@@ -163,6 +163,7 @@ void reset_triggers(void)
 }
 
 extern void vibe(int value);
+extern int isLandscape(void);
 
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
         if (!mutex_trylock(&pwrlock))
@@ -355,6 +356,8 @@ static void synaptics_ts_work_func(struct work_struct *work)
 	uint8_t buf[12];// 02h ~ 0Dh
 	uint8_t i2c_addr = 0x02;
 	int i = 0;
+	bool inZone = false;
+	int scr_mode = 0;
 
 	struct synaptics_ts_data *ts = container_of(work, struct synaptics_ts_data, work);
 
@@ -483,24 +486,42 @@ static void synaptics_ts_work_func(struct work_struct *work)
 			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
 			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 			input_mt_sync(ts->input_dev);
-			if (i == 0 && fingerInfo[i].status == 0 && fingerInfo[i].y <= 12) {
-				reset_triggers();
-				if (doubletap) {
-					tap[0] = tap[1];
-					tap[1] = ktime_to_ms(ktime_get());
-					tap[2] = tap[1]-tap[0];
+			if (i == 0) {
+				scr_mode = isLandscape();
+				switch (scr_mode) {
+					case 0: {
+						inZone = (fingerInfo[i].y <= 12)?true:false;
+					}
+					break;
+					case 1: {
+						inZone = (fingerInfo[i].x > 228)?true:false;
+					}
+					break;
+					case 2: {
+						inZone = (fingerInfo[i].x <= 12)?true:false;
+					}
+					break;
+				}
+				if (fingerInfo[i].status == 0 && inZone) {
+					reset_triggers();
+					if (doubletap) {
+						tap[0] = tap[1];
+						tap[1] = ktime_to_ms(ktime_get());
+						tap[2] = tap[1]-tap[0];
 					
-					pos.x[0] = pos.x[1];
-					pos.x[1] = fingerInfo[i].x;
-					pos.x[2] = ABS(pos.x[1], pos.x[0]);
+						pos.x[0] = pos.x[1];
+						pos.x[1] = fingerInfo[i].x;
+						pos.x[2] = ABS(pos.x[1], pos.x[0]);
 					
-					pos.y[0] = pos.y[1];
-					pos.y[1] = fingerInfo[i].y;
-					pos.y[2] = ABS(pos.y[1], pos.y[0]);
-					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
-							sweep2wake_pwrtrigger(1);
-							scr_suspended = true;
+						pos.y[0] = pos.y[1];
+						pos.y[1] = fingerInfo[i].y;
+						pos.y[2] = ABS(pos.y[1], pos.y[0]);
+					
+						if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
+									sweep2wake_pwrtrigger(1);
+									scr_suspended = true;
 						
+						}
 					}
 				}
 			}
