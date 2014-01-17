@@ -230,7 +230,7 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 				{	
 #endif
 	if (pocket_keyguard) {
-		if (keycode == KEY_HOME || keycode == KEY_END) {
+		if (keycode == KEY_HOME) {
 			if (!scr_suspended || !covered)
 				input_report_key(kp->input_devs->dev[dev], keycode, pressed);
 		} else {
@@ -389,9 +389,6 @@ static irqreturn_t gpiokey_irq_handler(int irq_in, void *dev_id)
 	unsigned short keyentry = mi->keymap[0];
 	unsigned short dev = keyentry >> MATRIX_CODE_BITS;
 
-if (pocket_keyguard && scr_suspended && covered) {
-		return IRQ_HANDLED;
-} else {
 	key_status = gpio_get_value(GPIO_POWERKEY);
 
 	if(!power_off_done) {
@@ -415,7 +412,6 @@ if (pocket_keyguard && scr_suspended && covered) {
 		printk("power_off_done : %d\n", power_off_done);
 
 	return IRQ_HANDLED;
-}
 
 }
 
