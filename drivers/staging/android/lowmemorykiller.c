@@ -291,7 +291,7 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 		}
 
 		oom_score_adj = p->signal->oom_adj;
-		switch (oom_score_adj) {
+		/*switch (oom_score_adj) {
 		    case 4:
 		    {
 		      p->signal->oom_adj = 6;
@@ -303,7 +303,7 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 		      p->signal->oom_adj = 3;
 		    }
 		    break;
-		}
+		}*/
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
 			continue;

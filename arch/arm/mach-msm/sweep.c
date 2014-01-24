@@ -31,11 +31,6 @@ int sweeptowake;
 int pocket_keyguard;
 int doubletap;
 int mediacontrol;
-int wake_start;
-int wake_end;
-int area_start;
-int area_end;
-int wake_sens_factor;
 
 /* sysfs interface for "sweeptowake" */
 #define show_one(file_name, object)					\
@@ -49,7 +44,6 @@ show_one(sweeptowake, sweeptowake);
 show_one(pocket_keyguard, pocket_keyguard);
 show_one(doubletap, doubletap);
 show_one(mediacontrol, mediacontrol);
-show_one(wake_sens_factor, wake_sens_factor);
 
 static ssize_t sweeptowake_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
 {
@@ -103,31 +97,6 @@ static ssize_t mediacontrol_store(struct kobject *kobj, struct kobj_attribute *a
 	mediacontrol = (doubletap)?input:0;
 	return count;
 }
-static ssize_t wake_sens_factor_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t count)
-{
-	unsigned int input;
-	int ret;
-	ret = sscanf(buf, "%du", &input);
-
-	if (ret < 1 || input > 8 ||
-			input < 1) {
-		return -EINVAL;
-	}
-
-	wake_sens_factor = input;
-#ifdef CONFIG_MACH_COOPER
-	wake_start = wake_sens_factor*15;
-	wake_end = 320-(wake_sens_factor*15);
-	area_start = 240-(wake_sens_factor*15);
-	area_end = 240+(wake_sens_factor*15);
-#else
-	wake_start = wake_sens_factor*10;
-	wake_end = 240-(wake_sens_factor*10);
-	area_start = 160-(wake_sens_factor*10);
-	area_end = 160+(wake_sens_factor*10);
-#endif
-	return count;
-}
 
 #define define_kobj_rw_attr(_name)		\
 static struct kobj_attribute _name##_attribute =	\
@@ -137,14 +106,12 @@ define_kobj_rw_attr(sweeptowake);
 define_kobj_rw_attr(pocket_keyguard);
 define_kobj_rw_attr(doubletap);
 define_kobj_rw_attr(mediacontrol);
-define_kobj_rw_attr(wake_sens_factor);
 
 static struct attribute *sweeptowake_attrs[] = {
 &sweeptowake_attribute.attr,
 &pocket_keyguard_attribute.attr,
 &doubletap_attribute.attr,
 &mediacontrol_attribute.attr,
-&wake_sens_factor_attribute.attr,
 NULL,
 };
 
@@ -163,11 +130,6 @@ static int __init sweep_init(void)
 	pocket_keyguard = 1; /* Pocket Keyguard enabled by default */
 	doubletap = 1; /* DoubleTap2Wake enabled by default */
 	mediacontrol = (doubletap)?1:0; /* DoubleTap2PlayPause enabled by default */
-	wake_sens_factor = 4;
-	wake_start = wake_sens_factor*15;
-	wake_end = 240-(wake_sens_factor*15);
-	area_start = 160-(wake_sens_factor*15);
-	area_end = 160+(wake_sens_factor*15);
 
 	sweeptowake_kobj = kobject_create_and_add("sweep", kernel_kobj);
 	if (!sweeptowake_kobj) {

@@ -129,8 +129,6 @@ static void synaptics_ts_late_resume(struct early_suspend *h);
 static DEFINE_MUTEX(tsp_sleep_lock);
 #endif
 
-unsigned int touch_state_val;
-
 /* Sweep to wake */
 cputime64_t tap[3] = {0};
 short prevx = 0;
@@ -193,26 +191,52 @@ static void sweep2wake_playpause(struct work_struct * sweep2wake_playpause_work)
         return;
 }
 
+static void sweep2wake_pressback(struct work_struct * sweep2wake_pressback_work) {
+  if (!mutex_trylock(&pwrlock))
+    return;
+  input_event(sweep_pwrdev, EV_KEY, KEY_BACK, 1);
+  input_event(sweep_pwrdev, EV_SYN, 0, 0);
+  msleep(10);
+  input_event(sweep_pwrdev, EV_KEY, KEY_BACK, 0);
+  input_event(sweep_pwrdev, EV_SYN, 0, 0);
+  reset_triggers();
+  msleep(40);
+  mutex_unlock(&pwrlock);
+  return;
+}
+
 static DECLARE_WORK(sweep2wake_presspwr_work, sweep2wake_presspwr);
 static DECLARE_WORK(sweep2wake_playpause_work, sweep2wake_playpause);
+static DECLARE_WORK(sweep2wake_pressback_work, sweep2wake_pressback);
 
 /* PowerKey trigger */
 static void sweep2wake_pwrtrigger(unsigned int cmd) {
-		vibe(30);
-		switch (cmd) {
-			case 1:
-			{
-       			schedule_work(&sweep2wake_presspwr_work);
-       		}
-       		break;
-       		
-       		case 2:
-			{
-       			schedule_work(&sweep2wake_playpause_work);
-       		}
-       		break;
-       	}
-        return;
+	switch (cmd) {
+		case 1:
+		{
+			vibe(40);
+			schedule_work(&sweep2wake_presspwr_work);
+		}
+		break;
+		
+		case 2:
+		{
+			vibe(80);
+			schedule_work(&sweep2wake_playpause_work);
+		}
+		break;
+		case 3:
+		{
+			schedule_work(&sweep2wake_pressback_work);
+		}
+		break;
+		default:
+		{
+			reset_triggers();
+		}
+		break;
+	}
+	return;
 }
 
 /* Sweep2wake */
@@ -477,50 +501,80 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		}
 		
 		if(fingerInfo[i].status < 0) continue;
-	
-	touch_state_val = fingerInfo[i].status;
-	
-	if (!scr_suspended) {
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
-			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
-			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
-			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
-			input_mt_sync(ts->input_dev);
-			if (i == 0) {
-				scr_mode = isLandscape();
-				switch (scr_mode) {
-					case 0: {
-						inZone = (fingerInfo[i].y <= 12)?true:false;
-					}
-					break;
-					case 1: {
-						inZone = (fingerInfo[i].x > 228)?true:false;
-					}
-					break;
-					case 2: {
-						inZone = (fingerInfo[i].x <= 12)?true:false;
-					}
-					break;
+		
+		if (!scr_suspended) {
+			if (i == 0 && fingerInfo[i].status == 1 && fingerInfo[i].y > 20 && fingerInfo[i].y < 55)
+			{
+				if (fingerInfo[i].x > 234 && !trigger)
+				{
+					trigger = true;
+					prevx = fingerInfo[i].x;
 				}
-				if (fingerInfo[i].status == 0 && inZone) {
-					reset_triggers();
-					if (doubletap) {
-						tap[0] = tap[1];
-						tap[1] = ktime_to_ms(ktime_get());
-						tap[2] = tap[1]-tap[0];
-					
-						pos.x[0] = pos.x[1];
-						pos.x[1] = fingerInfo[i].x;
-						pos.x[2] = ABS(pos.x[1], pos.x[0]);
-					
-						pos.y[0] = pos.y[1];
-						pos.y[1] = fingerInfo[i].y;
-						pos.y[2] = ABS(pos.y[1], pos.y[0]);
-					
-						if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
-									sweep2wake_pwrtrigger(1);
-									scr_suspended = true;
-						
+				
+				if (trigger)
+				{
+					if (fingerInfo[i].x <= prevx)
+					{
+						prevx = fingerInfo[i].x;
+						if (prevx < 160) {
+							reset_triggers();
+							sweep2wake_pwrtrigger(3);
+						}
+					} else
+					{
+						reset_triggers();
+					}
+				} else {
+					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
+					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
+					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
+					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
+					input_mt_sync(ts->input_dev);
+				}
+			} else
+			{
+				
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
+				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
+				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
+				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
+				input_mt_sync(ts->input_dev);
+				if (i == 0) {
+					scr_mode = isLandscape();
+					switch (scr_mode) {
+						case 0: {
+							inZone = (fingerInfo[i].y <= 16)?true:false;
+						}
+						break;
+						case 1: {
+							inZone = (fingerInfo[i].x > 228)?true:false;
+						}
+						break;
+						case 2: {
+							inZone = (fingerInfo[i].x <= 16)?true:false;
+						}
+						break;
+					}
+					if (fingerInfo[i].status == 0 && inZone) {
+						if (doubletap) {
+							tap[0] = tap[1];
+							tap[1] = ktime_to_ms(ktime_get());
+							tap[2] = tap[1]-tap[0];
+							
+							pos.x[0] = pos.x[1];
+							pos.x[1] = fingerInfo[i].x;
+							pos.x[2] = ABS(pos.x[1], pos.x[0]);
+							
+							pos.y[0] = pos.y[1];
+							pos.y[1] = fingerInfo[i].y;
+							pos.y[2] = ABS(pos.y[1], pos.y[0]);
+							
+							if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
+								reset_triggers();
+								sweep2wake_pwrtrigger(1);
+								scr_suspended = true;
+								
+							}
 						}
 					}
 				}
@@ -529,13 +583,14 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		if ( i == 0 ) {
 			if (fingerInfo[i].status == 1) {
 				if (sweeptowake) {
-					if (fingerInfo[i].y > area_start && fingerInfo[i].y < area_end) {
-						if (fingerInfo[i].x < wake_start)
+					if (fingerInfo[i].y > 100 && fingerInfo[i].y < 220) {
+						if (fingerInfo[i].x < 60 && !trigger)
 							trigger = true;
 						if (trigger) {
 							if (fingerInfo[i].x >= prevx) {
 								prevx = fingerInfo[i].x;
-								if (fingerInfo[i].x > wake_end) {
+								if (fingerInfo[i].x > 180) {
+									reset_triggers();
 									sweep2wake_pwrtrigger(1);
 									scr_suspended = false;
 								}
@@ -561,11 +616,14 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					pos.y[2] = ABS(pos.y[1], pos.y[0]);
 					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
 						if (fingerInfo[i].y <= 180) {
+							reset_triggers();
 							sweep2wake_pwrtrigger(1);
 							scr_suspended = false;
 						}
-						else 
+						else{
+							reset_triggers();
 							sweep2wake_pwrtrigger(2);
+						}
 						
 					}
 				}
