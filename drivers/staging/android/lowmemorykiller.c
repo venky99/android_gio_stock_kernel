@@ -51,23 +51,28 @@
 #define OOM_SCORE_ADJ_MAX       1000
 
 static uint32_t lowmem_debug_level = 1;
-static int lowmem_adj[6] = {
+static int lowmem_adj[7] = {
 	0,
 	1,
-	6,
+	3,
+	5,
+	9,
 	12,
+	15,
 };
-static int lowmem_adj_size = 4;
-static int lowmem_minfree[6] = {
+static int lowmem_adj_size = 7;
+static int lowmem_minfree[7] = {
 	2048,
 	3072,
-	10240,
+	6144,
 	12800,
 	15360,
 	19200,
+	20480,
 };
-static int lowmem_minfree_size = 6;
+static int lowmem_minfree_size = 7;
 static int lmk_fast_run = 1;
+static char *launcher = "launcher";
 
 static unsigned long lowmem_deathpending_timeout;
 
@@ -286,10 +291,28 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 		}
 
 		oom_score_adj = p->signal->oom_adj;
+		switch (oom_score_adj) {
+		    case 4:
+		    {
+		      p->signal->oom_adj = 6;
+		    }
+		    break;
+		    
+		    case 7:
+		    {
+		      p->signal->oom_adj = 3;
+		    }
+		    break;
+		}
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
 			continue;
 		}
+		if (strstr(p->comm, launcher) ) {
+			task_unlock(p);
+			continue;
+		}
+		
 		tasksize = get_mm_rss(p->mm);
 		task_unlock(p);
 		if (tasksize <= 0)
@@ -345,7 +368,7 @@ static void __exit lowmem_exit(void)
 
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
 module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
-			 S_IRUGO | S_IWUSR);
+			 S_IRUGO);
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
