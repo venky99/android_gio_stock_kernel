@@ -418,7 +418,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 				{
 					//			if(fingerInfo[1].id ==0)
 					{
-					if (!scr_suspended) {
+					if (likely(!scr_suspended)) {
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[2].x);	
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[2].y);
 						input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
@@ -432,12 +432,12 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
 					}
 				}
-				else if(fingerInfo[2].id != 0) // check x or y jump with same finger id
+				else if(unlikely(fingerInfo[2].id != 0)) // check x or y jump with same finger id
 				{
 
 					if(ABS(fingerInfo[2].x,fingerInfo[0].x)>150)
 					{
-					if (!scr_suspended) {
+					if (likely(!scr_suspended)) {
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[2].x);	
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[2].y);
 						input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
@@ -450,7 +450,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					}
 					else if(ABS(fingerInfo[2].y,fingerInfo[0].y)>150)
 					{
-					if (!scr_suspended) {
+					if (likely(!scr_suspended)) {
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[2].x);	
 						input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[2].y);
 						input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
@@ -502,44 +502,46 @@ static void synaptics_ts_work_func(struct work_struct *work)
 		
 		if(fingerInfo[i].status < 0) continue;
 		
-		if (!scr_suspended) {
-			if (i == 0 && fingerInfo[i].status == 1 && fingerInfo[i].y > 20 && fingerInfo[i].y < 55)
-			{
-				if (fingerInfo[i].x > 234 && !trigger)
+		if(likely(i==0)) {
+			if (likely(!scr_suspended)) {
+				if (fingerInfo[i].status == 1 && fingerInfo[i].y > 20 && fingerInfo[i].y < 55)
 				{
-					trigger = true;
-					prevx = fingerInfo[i].x;
-				}
-				
-				if (trigger)
-				{
-					if (fingerInfo[i].x <= prevx)
-					{
-						prevx = fingerInfo[i].x;
-						if (prevx < 160) {
-							reset_triggers();
-							sweep2wake_pwrtrigger(3);
+					if (likely(isLandscape() == 0)) {
+						if (fingerInfo[i].x > 234 && !trigger)
+						{
+							trigger = true;
+							prevx = fingerInfo[i].x;
 						}
-					} else
-					{
-						reset_triggers();
+						
+						if (trigger)
+						{
+							if (fingerInfo[i].x <= prevx)
+							{
+								prevx = fingerInfo[i].x;
+								if (prevx < 160) {
+									reset_triggers();
+									sweep2wake_pwrtrigger(3);
+								}
+							} else
+							{
+								reset_triggers();
+							}
+						} else {
+							input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
+							input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
+							input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
+							input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
+							input_mt_sync(ts->input_dev);
+						}
 					}
-				} else {
+				} else
+				{
+					
 					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
 					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
 					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
 					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
 					input_mt_sync(ts->input_dev);
-				}
-			} else
-			{
-				
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
-				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
-				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
-				input_mt_sync(ts->input_dev);
-				if (i == 0) {
 					scr_mode = isLandscape();
 					switch (scr_mode) {
 						case 0: {
@@ -556,7 +558,7 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						break;
 					}
 					if (fingerInfo[i].status == 0 && inZone) {
-						if (doubletap) {
+						if (likely(doubletap)) {
 							tap[0] = tap[1];
 							tap[1] = ktime_to_ms(ktime_get());
 							tap[2] = tap[1]-tap[0];
@@ -578,58 +580,56 @@ static void synaptics_ts_work_func(struct work_struct *work)
 						}
 					}
 				}
-			}
-	} else {
-		if ( i == 0 ) {
-			if (fingerInfo[i].status == 1) {
-				if (sweeptowake) {
-					if (fingerInfo[i].y > 100 && fingerInfo[i].y < 220) {
-						if (fingerInfo[i].x < 60 && !trigger)
-							trigger = true;
-						if (trigger) {
-							if (fingerInfo[i].x >= prevx) {
-								prevx = fingerInfo[i].x;
-								if (fingerInfo[i].x > 180) {
+			} else {
+				if (fingerInfo[i].status == 1) {
+					if (likely(sweeptowake)) {
+						if (fingerInfo[i].y > 100 && fingerInfo[i].y < 220) {
+							if (fingerInfo[i].x < 60 && !trigger)
+								trigger = true;
+							if (trigger) {
+								if (fingerInfo[i].x >= prevx) {
+									prevx = fingerInfo[i].x;
+									if (fingerInfo[i].x > 180) {
+										reset_triggers();
+										sweep2wake_pwrtrigger(1);
+										scr_suspended = false;
+									}
+								} else {
 									reset_triggers();
-									sweep2wake_pwrtrigger(1);
-									scr_suspended = false;
 								}
-							} else {
-								reset_triggers();
 							}
 						}
 					}
-				}
-			} else {
-				reset_triggers();
-				if (doubletap) {
-					tap[0] = tap[1];
-					tap[1] = ktime_to_ms(ktime_get());
-					tap[2] = tap[1]-tap[0];
-					
-					pos.x[0] = pos.x[1];
-					pos.x[1] = fingerInfo[i].x;
-					pos.x[2] = ABS(pos.x[1], pos.x[0]);
-					
-					pos.y[0] = pos.y[1];
-					pos.y[1] = fingerInfo[i].y;
-					pos.y[2] = ABS(pos.y[1], pos.y[0]);
-					if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
-						if (fingerInfo[i].y <= 180) {
-							reset_triggers();
-							sweep2wake_pwrtrigger(1);
-							scr_suspended = false;
-						}
-						else{
-							reset_triggers();
-							sweep2wake_pwrtrigger(2);
-						}
+				} else {
+					reset_triggers();
+					if (likely(doubletap)) {
+						tap[0] = tap[1];
+						tap[1] = ktime_to_ms(ktime_get());
+						tap[2] = tap[1]-tap[0];
 						
+						pos.x[0] = pos.x[1];
+						pos.x[1] = fingerInfo[i].x;
+						pos.x[2] = ABS(pos.x[1], pos.x[0]);
+						
+						pos.y[0] = pos.y[1];
+						pos.y[1] = fingerInfo[i].y;
+						pos.y[2] = ABS(pos.y[1], pos.y[0]);
+						if (tap[2] > min_time && tap[2] < max_time && pos.x[2] < 21 && pos.y[2] < 21) {
+							if (fingerInfo[i].y <= 180) {
+								reset_triggers();
+								sweep2wake_pwrtrigger(1);
+								scr_suspended = false;
+							}
+							else{
+								reset_triggers();
+								sweep2wake_pwrtrigger(2);
+							}
+							
+						}
 					}
 				}
 			}
 		}
-	}
 }
 
 	input_sync(ts->input_dev);

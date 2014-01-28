@@ -50,27 +50,25 @@
 #define KSWAPD_ZONE_BALANCE_GAP_RATIO 100
 #define OOM_SCORE_ADJ_MAX       1000
 
-static uint32_t lowmem_debug_level = 1;
-static int lowmem_adj[7] = {
+static uint32_t lowmem_debug_level = 0;
+static int lowmem_adj[6] = {
 	0,
-	1,
 	3,
 	5,
-	9,
+	8,
 	12,
 	15,
 };
-static int lowmem_adj_size = 7;
-static int lowmem_minfree[7] = {
+static int lowmem_adj_size = 6;
+static int lowmem_minfree[6] = {
 	3072,
 	4096,
-	10240,
-	12800,
+	6144,
 	15360,
 	19200,
 	20480,
 };
-static int lowmem_minfree_size = 7;
+static int lowmem_minfree_size = 6;
 static int lmk_fast_run = 1;
 static char *launcher = "launcher";
 
@@ -291,24 +289,11 @@ static int lowmem_shrink(struct shrinker *s, int nr_to_scan, gfp_t gfp_mask)
 		}
 
 		oom_score_adj = p->signal->oom_adj;
-		/*switch (oom_score_adj) {
-		    case 4:
-		    {
-		      p->signal->oom_adj = 6;
-		    }
-		    break;
-		    
-		    case 7:
-		    {
-		      p->signal->oom_adj = 3;
-		    }
-		    break;
-		}*/
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);
 			continue;
 		}
-		if (strstr(p->comm, launcher) ) {
+		if (unlikely(strstr(p->comm, launcher)) ) {
 			task_unlock(p);
 			continue;
 		}
@@ -368,9 +353,9 @@ static void __exit lowmem_exit(void)
 
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
 module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
-			 S_IRUGO);
+			 S_IRUGO | S_IWUSR);
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
-			 S_IRUGO);
+			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 module_param_named(lmk_fast_run, lmk_fast_run, int, S_IRUGO | S_IWUSR);
 

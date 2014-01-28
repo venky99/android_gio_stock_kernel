@@ -229,14 +229,7 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 				else
 				{	
 #endif
-	if (pocket_keyguard) {
-		if (keycode == KEY_HOME) {
-			if (!scr_suspended || !covered)
-				input_report_key(kp->input_devs->dev[dev], keycode, pressed);
-		} else {
-			input_report_key(kp->input_devs->dev[dev], keycode, pressed);
-		}
-	} else {
+	if (unlikely(!pocket_keyguard) || likely(!scr_suspended || keycode != KEY_HOME || !covered)) {
 		input_report_key(kp->input_devs->dev[dev], keycode, pressed);
 	}
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
@@ -253,7 +246,7 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 				if(!lcd_on_state_for_debug) 
 				    ath_debug_sdio_claimer();
 #endif
-#else
+				    #elif defined(CONFIG_KERNEL_DEBUG_SEC)
 				printk("key event (keycode:%d, pressed:%d), wlan_debug_step=%d\n", 
 						keycode, pressed, wlan_debug_step);	// sec: sm.kim
 #endif

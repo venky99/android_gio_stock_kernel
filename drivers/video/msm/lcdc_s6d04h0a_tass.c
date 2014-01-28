@@ -64,7 +64,7 @@
 #include <linux/module.h>
 
 
-#define LCDC_DEBUG
+#define LCDC_DEBUG 0
 
 #ifdef LCDC_DEBUG
 #define DPRINT(x...)	printk("s6d04h0a_TASS " x)
@@ -688,15 +688,14 @@ static int lcdc_s6d04h0a_panel_off(struct platform_device *pdev)
 static void lcdc_s6d04h0a_set_backlight(struct msm_fb_data_type *mfd)
 {	
 	int bl_value = mfd->bl_level;
-	static int lockup_count = 0;
-	printk("[BACLKIGHT] : %d\n",bl_value);
+	//printk("[BACLKIGHT] : %d\n",bl_value);
 	if(board_hw_revision == 1 || board_hw_revision == 0) {
 		lcdc_s6d_set_brightness_by_aat1401(bl_value);
 	} else if(board_hw_revision == 2 || board_hw_revision == 3) {
-		printk("[LCD] BACKLIGHT SET\n");
+		//printk("[LCD] BACKLIGHT SET\n");
 		lcdc_s6d_set_brightness_by_ktd259(bl_value);
 	} else{
-		printk("Unknown HW Rev!!!!\n");
+		//printk("Unknown HW Rev!!!!\n");
 		lcdc_s6d_set_brightness_by_ktd259(bl_value);
 	}
 }
@@ -783,7 +782,7 @@ static irqreturn_t lcd_det_irq_handler(int irq, void *dev_id)
 	struct s6d04h0a_lcd_det_data *lcd_det = dev_id;
 
 	disable_irq_nosync(lcd_det->irq);
-	printk("[LCD] lcd_det->irq  %d\n",lcd_det->irq);
+	//printk("[LCD] lcd_det->irq  %d\n",lcd_det->irq);
 
 	if(	s6d04h0a_state.display_on == TRUE  &&
 		s6d04h0a_state.disp_initialized == TRUE && 
@@ -794,11 +793,11 @@ static irqreturn_t lcd_det_irq_handler(int irq, void *dev_id)
 			queue_work(lcd_det_wq, &lcd_det->work_lcd_det);
 		}
 
-		printk("[LCD] IRQ_HANDLED \n");
+		//printk("[LCD] IRQ_HANDLED \n");
 
 		return IRQ_HANDLED;
 	} else {
-		printk("[LCD] LCD Power down OK. \n");
+		//printk("[LCD] LCD Power down OK. \n");
 		enable_irq(lcd_det->irq);
 		return IRQ_HANDLED;
 	}
