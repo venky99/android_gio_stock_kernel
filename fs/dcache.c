@@ -34,8 +34,11 @@
 #include <linux/fs_struct.h>
 #include <linux/hardirq.h>
 #include "internal.h"
+#include <linux/earlysuspend.h>
 
-int sysctl_vfs_cache_pressure __read_mostly = 40;
+#define DEFAULT_VFS_CACHE_PRESSURE 1
+int sysctl_vfs_cache_pressure __read_mostly, resume_cache_pressure;
+int suspend_cache_pressure = 30;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
  __cacheline_aligned_in_smp DEFINE_SPINLOCK(dcache_lock);
@@ -2273,6 +2276,26 @@ ino_t find_inode_number(struct dentry *dir, struct qstr *name)
 }
 EXPORT_SYMBOL(find_inode_number);
 
+
+static void cpressure_early_suspend(struct early_suspend *handler)
+{
+	if (sysctl_vfs_cache_pressure != resume_cache_pressure)
+		resume_cache_pressure = sysctl_vfs_cache_pressure;
+	
+	sysctl_vfs_cache_pressure = suspend_cache_pressure;
+}
+
+static void cpressure_late_resume(struct early_suspend *handler)
+{
+	sysctl_vfs_cache_pressure = resume_cache_pressure;
+}
+
+static struct early_suspend cpressure_suspend = {
+	.suspend = cpressure_early_suspend,
+	.resume = cpressure_late_resume,
+};
+			
+
 static __initdata unsigned long dhash_entries;
 static int __init set_dhash_entries(char *str)
 {
@@ -2347,6 +2370,8 @@ EXPORT_SYMBOL(d_genocide);
 
 void __init vfs_caches_init_early(void)
 {
+	sysctl_vfs_cache_pressure = resume_cache_pressure =
+	      DEFAULT_VFS_CACHE_PRESSURE;
 	dcache_init_early();
 	inode_init_early();
 }
@@ -2370,4 +2395,5 @@ void __init vfs_caches_init(unsigned long mempages)
 	mnt_init();
 	bdev_cache_init();
 	chrdev_init();
+	register_early_suspend(&cpressure_suspend);
 }
