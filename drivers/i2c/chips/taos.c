@@ -24,11 +24,13 @@
 #include <mach/gpio.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
-#include <linux/wakelock.h>
-#include <linux/sweep.h>
 #include <mach/vreg.h>
+#include <linux/wakelock.h>
+#ifdef CONFIG_SYNAPTICS_SWEEP
+#include <linux/sweep.h>
 #include <linux/mutex.h>
 #include <linux/earlysuspend.h>
+#endif
 
 #include "taos.h"
 
@@ -169,10 +171,14 @@ struct class *proxsensor_class;
 
 struct device *switch_cmd_dev;
 
-static bool proximity_enable = 1;
 static short proximity_value = 0;
+#ifdef CONFIG_SYNAPTICS_SWEEP
+static bool proximity_enable = 1;
 static bool forced = 0;
 bool covered = false;
+#else
+static bool proximity_enable = 0;
+#endif
 
 static struct wake_lock prx_wake_lock;
 
@@ -183,12 +189,14 @@ static ktime_t timeA,timeB;
 static ktime_t timeSub;
 #endif
 
+#ifdef CONFIG_SYNAPTICS_SWEEP
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void taos_early_suspend(struct early_suspend *h);
 static void taos_late_resume(struct early_suspend *h);
 #endif
 
 static DEFINE_MUTEX(prossimo_lock);
+#endif
 
 extern int board_hw_revision;
 
@@ -327,10 +335,14 @@ static void taos_work_func_prox(struct work_struct *work)
 	threshold_high= i2c_smbus_read_word_data(opt_i2c_client, (CMD_REG | PRX_MAXTHRESHLO) );
 	threshold_low= i2c_smbus_read_word_data(opt_i2c_client, (CMD_REG | PRX_MINTHRESHLO) );
 	if ( (threshold_high ==  (PRX_THRSH_HI_PARAM)) && (adc_data >=  (PRX_THRSH_HI_PARAM) ) )
-	{
+	{	
+#ifdef CONFIG_SYNAPTICS_SWEEP
 		mutex_lock(&prossimo_lock);
 		proximity_value = 1;
 		covered = true;
+#else
+		proximity_value = 1;
+#endif
 
 		prox_int_thresh[0] = (PRX_THRSH_LO_PARAM) & 0xFF;
 		prox_int_thresh[1] = (PRX_THRSH_LO_PARAM >> 8) & 0xFF;
@@ -340,18 +352,23 @@ static void taos_work_func_prox(struct work_struct *work)
 		{
 			opt_i2c_write((CMD_REG|(PRX_MINTHRESHLO + i)),&prox_int_thresh[i]);
 		}
-
+#ifdef CONFIG_SYNAPTICS_SWEEP
 		if (scr_suspended && !disabled) {
 			disabled = true;
 			in_pocket();
 		}
 		mutex_unlock(&prossimo_lock);
+#endif
 	}
 	else if ( (threshold_high ==  (0xFFFF)) && (adc_data <=  (PRX_THRSH_LO_PARAM) ) )
 	{
+#ifdef CONFIG_SYNAPTICS_SWEEP
 		mutex_lock(&prossimo_lock);
 		proximity_value = 0;
 		covered = false;
+#else
+		proximity_value = 0;
+#endif
 
 		prox_int_thresh[0] = (0x0000) & 0xFF;
 		prox_int_thresh[1] = (0x0000 >> 8) & 0xFF;
@@ -362,10 +379,12 @@ static void taos_work_func_prox(struct work_struct *work)
 			opt_i2c_write((CMD_REG|(PRX_MINTHRESHLO + i)),&prox_int_thresh[i]);
 		}
 
+#ifdef CONFIG_SYNAPTICS_SWEEP
 		if (scr_suspended) {
 			out_of_pocket();
 		}
 		mutex_unlock(&prossimo_lock);
+#endif
 	}
     else
     {
@@ -596,24 +615,32 @@ static long proximity_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 
 		case TAOS_PROX_OPEN:
 			{
+#ifdef CONFIG_SYNAPTICS_SWEEP
 				if (proximity_enable != 1) {
+#endif
 					printk(KERN_INFO "[PROXIMITY] %s : case OPEN\n", __FUNCTION__);
 					taos_on(taos,PROXIMITY);
 					proximity_enable = 1;
+#ifdef CONFIG_SYNAPTICS_SWEEP
 				} 
 					forced = 0;	
+#endif
 			}
 			break;
 
 		case TAOS_PROX_CLOSE:
 			{
+#ifdef CONFIG_SYNAPTICS_SWEEP
 				if (!scr_suspended && proximity_enable != 0) {
+#endif
 					printk(KERN_INFO "[PROXIMITY] %s : case CLOSE\n", __FUNCTION__);
 					taos_off(taos,PROXIMITY);
 					proximity_enable = 0;
+#ifdef CONFIG_SYNAPTICS_SWEEP
 				} else {
 					forced = 1;
 				}
+#endif
 			}
 			break;
 
@@ -783,11 +810,13 @@ static int taos_opt_probe(struct i2c_client *client,
 	/* wake lock init */
 	wake_lock_init(&prx_wake_lock, WAKE_LOCK_SUSPEND, "prx_wake_lock");
 
+#ifdef CONFIG_SYNAPTICS_SWEEP
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	taos->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	taos->early_suspend.suspend = taos_early_suspend;
 	taos->early_suspend.resume = taos_late_resume;
 	register_early_suspend(&taos->early_suspend);
+#endif
 #endif
 
 	/* set sysfs for light sensor */
@@ -838,7 +867,9 @@ static int taos_opt_probe(struct i2c_client *client,
 	
 	// maintain power-down mode before using sensor
 	taos_off(taos,ALL);
+#ifdef CONFIG_SYNAPTICS_SWEEP
 	proximity_enable = 0;
+#endif
 	
 //++	// test for sensor 
 
@@ -867,7 +898,9 @@ exit:
 static int taos_opt_remove(struct i2c_client *client)
 {
 	struct taos_data *taos = i2c_get_clientdata(client);
+#ifdef CONFIG_SYNAPTICS_SWEEP
 	unregister_early_suspend(&taos->early_suspend);
+#endif
 #ifdef TAOS_DEBUG
 	printk(KERN_INFO "%s\n",__FUNCTION__);
 #endif	
@@ -883,35 +916,7 @@ static int taos_opt_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifndef CONFIG_HAS_EARLYSUSPEND
-#ifdef CONFIG_PM
-static int taos_opt_suspend(struct i2c_client *client, pm_message_t mesg)
-{
-//	struct taos_data *taos = i2c_get_clientdata(client);
-#ifdef TAOS_DEBUG
-	printk(KERN_INFO "[%s] TAOS !!suspend mode!!\n",__FUNCTION__);
-#endif
-	return 0;
-}
-
-static int taos_opt_resume(struct i2c_client *client)
-{
-//	struct taos_data *taos = i2c_get_clientdata(client);
-//	u8 value;
-#ifdef TAOS_DEBUG
-	printk(KERN_INFO "[%s] TAOS !!resume mode!!\n",__FUNCTION__);
-#endif
-	/* wake_up source handler */
-
-	return 0;
-}
-#else
-#define taos_opt_suspend NULL
-#define taos_opt_resume NULL
-#endif
-#endif
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#if defined (CONFIG_HAS_EARLYSUSPEND) && defined (CONFIG_SYNAPTICS_SWEEP)
 static void taos_early_suspend(struct early_suspend *h)
 {
 	struct taos_data *taos = dev_get_drvdata(switch_cmd_dev);
@@ -933,6 +938,32 @@ static void taos_late_resume(struct early_suspend *h)
 		forced = 0;
 	}	
 }
+#else
+#ifdef CONFIG_PM
+static int taos_opt_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	//	struct taos_data *taos = i2c_get_clientdata(client);
+	#ifdef TAOS_DEBUG
+	printk(KERN_INFO "[%s] TAOS !!suspend mode!!\n",__FUNCTION__);
+	#endif
+	return 0;
+}
+
+static int taos_opt_resume(struct i2c_client *client)
+{
+	//	struct taos_data *taos = i2c_get_clientdata(client);
+	//	u8 value;
+	#ifdef TAOS_DEBUG
+	printk(KERN_INFO "[%s] TAOS !!resume mode!!\n",__FUNCTION__);
+	#endif
+	/* wake_up source handler */
+	
+	return 0;
+}
+#else
+#define taos_opt_suspend NULL
+#define taos_opt_resume NULL
+#endif
 #endif
 
 static const struct i2c_device_id taos_id[] = {
@@ -952,7 +983,7 @@ static struct i2c_driver taos_opt_driver = {
 //	.address_data	= &addr_data, //kerner version 3.2
 	.probe		= taos_opt_probe,
 	.remove		= taos_opt_remove,
-#ifndef CONFIG_HAS_EARLYSUSPEND
+#if !defined (CONFIG_HAS_EARLYSUSPEND) && !defined (CONFIG_SYNAPTICS_SWEEP)
 	.suspend	= taos_opt_suspend,
 	.resume		= taos_opt_resume,
 #endif

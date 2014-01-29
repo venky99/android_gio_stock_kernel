@@ -1,9 +1,13 @@
 #if defined(CONFIG_MACH_COOPER)
 #include "synaptics_i2c_rmi4_cooper.c"
-#elif defined(CONFIG_MACH_BENI)
+#elif defined(CONFIG_MACH_BENI) && defined(CONFIG_SYNAPTICS_SWEEP)
 #include "synaptics_i2c_rmi4_new.c"
-#elif defined(CONFIG_MACH_TASS)
+#elif defined(CONFIG_MACH_BENI) && !defined(CONFIG_SYNAPTICS_SWEEP)
+#include "synaptics_i2c_rmi4_beni.c"
+#elif defined(CONFIG_MACH_TASS) && defined(CONFIG_SYNAPTICS_SWEEP)
 #include "synaptics_i2c_rmi4_new.c"
+#elif defined(CONFIG_MACH_TASS) && !defined(CONFIG_SYNAPTICS_SWEEP)
+#include "synaptics_i2c_rmi4_tass.c"
 #elif defined(CONFIG_MACH_TASSDT)
 #include "synaptics_i2c_rmi4_tassdt.c"
 #elif defined(CONFIG_MACH_LUCAS)

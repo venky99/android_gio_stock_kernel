@@ -229,9 +229,13 @@ static void report_key(struct gpio_kp *kp, int key_index, int out, int in)
 				else
 				{	
 #endif
+#ifdef CONFIG_SYNAPTICS_SWEEP
 	if (unlikely(!pocket_keyguard) || likely(!scr_suspended || keycode != KEY_HOME || !covered)) {
 		input_report_key(kp->input_devs->dev[dev], keycode, pressed);
 	}
+#else
+		input_report_key(kp->input_devs->dev[dev], keycode, pressed);
+#endif
 #if defined(CONFIG_MACH_COOPER) || defined(CONFIG_MACH_BENI) || defined(CONFIG_MACH_TASS) || defined(CONFIG_MACH_TASSDT) || defined(CONFIG_MACH_GIO)
 				if(keycode == KEY_HOME && pressed == 1)
 					TSP_forced_release_forkey();

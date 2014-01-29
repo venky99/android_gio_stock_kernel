@@ -295,6 +295,7 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	}
 }
 
+#ifdef CONFIG_SYNAPTICS_SWEEP
 void vibe(int value)
 {
 	hrtimer_cancel(&vibe_timer);
@@ -309,7 +310,7 @@ void vibe(int value)
 	} else
 		pmic_vibrator_off();
 }
-	
+#endif	
 
 static int vibrator_get_time(struct timed_output_dev *dev)
 {

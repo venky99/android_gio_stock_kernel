@@ -17,7 +17,9 @@
 #ifndef _LINUX_SYNAPTICS_I2C_RMI_H
 #define _LINUX_SYNAPTICS_I2C_RMI_H
 
+#ifdef CONFIG_SYNAPTICS_SWEEP
 #include <linux/input.h>
+#endif
 
 #define SYNAPTICS_I2C_RMI_NAME "synaptics-rmi-ts"
 
@@ -53,7 +55,8 @@ struct synaptics_i2c_rmi_platform_data {
 	int fuzz_w;
 	int8_t sensitivity_adjust;
 };
-/* Sweep2Wake */
+#ifdef CONFIG_SYNAPTICS_SWEEP
 	extern void sweep_setdev(struct input_dev * input_device);
+#endif
 
 #endif /* _LINUX_SYNAPTICS_I2C_RMI_H */

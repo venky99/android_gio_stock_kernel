@@ -32,8 +32,9 @@ struct taos_data {
 	int             irq;
 	struct hrtimer timer;
 	struct timer_list light_init_timer;
+#ifdef CONFIG_SYNAPTICS_SWEEP
 	struct early_suspend early_suspend;
-
+#endif
 };
 struct taos_data *taos_global;
 
