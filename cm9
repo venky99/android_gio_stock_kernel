@@ -12,6 +12,4 @@ zip -0 elementaryCM9.zip -r META-INF -r system boot.img
 
 sleep 2
 
-adb push elementaryCM9.zip /sdcard/Kernel
-
 cd ..

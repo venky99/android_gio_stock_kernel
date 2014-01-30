@@ -12,6 +12,4 @@ zip -0 elementaryAOKP.zip -r META-INF -r system boot.img
 
 sleep 2
 
-adb push elementaryAOKP.zip /sdcard/Kernel
-
 cd ..

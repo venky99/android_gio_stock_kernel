@@ -6,4 +6,4 @@ chmod 0644 /dev/urandom
 chmod 0644 /dev/random
 
 rm /dev/random && ln /dev/frandom /dev/random
-rm /dev/urandom && ln /dev/frandom /dev/urandom
+rm /dev/urandom && ln /dev/erandom /dev/urandom

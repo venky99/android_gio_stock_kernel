@@ -4,14 +4,14 @@ cp arch/arm/boot/zImage ramdisk
 
 cd ramdisk
 
-./repack_bootimg.pl zImage ramdisk-miui boot.img
+./repack_bootimg.pl zImage ramdisk-cm9 boot.img
 
 sleep 1
 
-zip -0 cleanKernel.zip -r META-INF boot.img
+zip -0 elementaryCM9.zip -r META-INF -r system boot.img
 
 sleep 2
 
-adb push cleanKernel.zip /sdcard/Kernel
+adb push elementaryCM9.zip /sdcard/Kernel
 
 cd ..
