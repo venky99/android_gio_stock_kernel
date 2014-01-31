@@ -629,6 +629,12 @@ static void synaptics_ts_work_func(struct work_struct *work)
 					}
 				}
 			}
+		} else {
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_X, fingerInfo[i].x);
+			input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, fingerInfo[i].y);
+			input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, fingerInfo[i].status);
+			input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, fingerInfo[i].z);
+			input_mt_sync(ts->input_dev);
 		}
 }
 
