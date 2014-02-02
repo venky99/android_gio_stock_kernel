@@ -1,0 +1,31 @@
+#!/bin/sh
+
+cp arch/arm/boot/zImage ramdisk
+
+cd ramdisk
+
+./repack_bootimg.pl zImage ramdisk-cm9-beni boot.img
+
+sleep 1
+
+zip -0 beni/elementaryCM9-$1.zip -r META-INF -r system boot.img
+
+sleep 2
+
+./repack_bootimg.pl zImage ramdisk-aosp-beni boot.img
+
+sleep 1
+
+zip -0 beni/elementaryAOSP-$1.zip -r META-INF -r system boot.img
+
+sleep 2
+
+./repack_bootimg.pl zImage ramdisk-aokp-beni boot.img
+
+sleep 1
+
+zip -0 beni/elementaryAOKP-$1.zip -r META-INF -r system boot.img
+
+sleep 2
+
+cd ..
