@@ -1,0 +1,14 @@
+#!/system/bin/sh
+
+chmod 0666 /dev/frandom
+chmod 0666 /dev/erandom
+chmod 0666 /dev/urandom
+chmod 0666 /dev/random
+
+rm /dev/random && ln /dev/frandom /dev/random
+rm /dev/urandom && ln /dev/erandom /dev/urandom
+
+chmod 0666 /dev/frandom
+chmod 0666 /dev/erandom
+chmod 0666 /dev/urandom
+chmod 0666 /dev/random
