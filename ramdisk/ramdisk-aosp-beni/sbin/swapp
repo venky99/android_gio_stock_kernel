@@ -15,10 +15,3 @@ mkswap /cache/swapfile
 chown 0.0 /cache/swapfile
 chmod 0600 /cache/swapfile
 swapon /cache/swapfile
-
-DEV=/dev/block/zram0
-SYSFS_PATH=/sys/block/zram0
-
-      echo 115343360 > $SYSFS_PATH/disksize
-      mkswap $DEV >/dev/null
-      swapon $DEV
