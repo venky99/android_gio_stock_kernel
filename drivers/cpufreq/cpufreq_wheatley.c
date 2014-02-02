@@ -46,6 +46,8 @@
 #define STOCK_MAX_FREQ				(600000)
 
 int max_freq = STOCK_MAX_FREQ;
+int overclock = OVERCLOCK;
+int checked = 0;
 
 
 /*
@@ -494,13 +496,27 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
     total_idletime = 0;
     total_usage = 0;
     
-    if (unlikely(policy->max != OVERCLOCK && max_freq != policy->max))
-	    max_freq = policy->max;
-    else {
-	    if (unlikely(global_page_state(NR_FREE_PAGES) < 20480 && global_page_state(NR_FILE_PAGES) - global_page_state(NR_SHMEM) < 20480))
-		    max_freq = OVERCLOCK;
-	    else
-		    max_freq = STOCK_MAX_FREQ;
+    if (likely(policy->max > STOCK_MAX_FREQ)) {
+	if (unlikely(policy->max != overclock))
+		overclock = policy->max;
+	else {
+		switch(checked) {
+			case 5:
+			{
+				if (unlikely(global_page_state(NR_FREE_PAGES) < 20480 && global_page_state(NR_FILE_PAGES) - global_page_state(NR_SHMEM) < 20480))
+					max_freq = overclock;
+				else
+					max_freq = STOCK_MAX_FREQ;
+				checked = 0;
+			}
+			break;
+			default:
+			{
+				checked++;
+			}
+			break;
+		}
+	}
     }
 
     for_each_cpu(j, policy->cpus) {
