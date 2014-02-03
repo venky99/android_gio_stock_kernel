@@ -2371,6 +2371,9 @@ static struct mmc_platform_data msm7x2x_sdc1_data = {
 #if 1 /* ATHEROS */
 	.dummy52_required = 1,
 #endif /* ATHEROS */
+#ifdef CONFIG_MMC_MSM_SDIO_SUPPORT
+	.sdiowakeup_irq = MSM_GPIO_TO_INT(66),
+#endif
 	.msmsdcc_fmin   = 144000,
 	.msmsdcc_fmid   = 24576000,
 	.msmsdcc_fmax   = 49152000,
