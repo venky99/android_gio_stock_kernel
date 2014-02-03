@@ -1,5 +1,9 @@
 #!/bin/sh
 
+make beni-$1-defconfig
+
+sleep 2
+
 cp arch/arm/boot/zImage ramdisk
 
 cd ramdisk
