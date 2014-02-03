@@ -1,0 +1,6 @@
+#!/bin/sh
+
+./tass Sweep
+./tass NoSweep
+./beni Sweep
+./beni NoSweep
