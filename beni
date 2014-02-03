@@ -1,6 +1,8 @@
 #!/bin/sh
 
-make beni-$1-defconfig
+make beni_$1_defconfig
+
+make -j 16
 
 sleep 2
 
@@ -28,7 +30,7 @@ sleep 2
 
 sleep 1
 
-zip -0 beni/elementaryAOKP-$1.zip -r META-INF -r system boot.img
+zip -0 beni/elementaryAOKP-ICS-$1.zip -r META-INF -r system boot.img
 
 sleep 2
 
