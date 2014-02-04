@@ -61,12 +61,12 @@ static int lowmem_adj[6] = {
 };
 static int lowmem_adj_size = 6;
 static int lowmem_minfree[6] = {
-	3072,
+	1024,
+	2048,
 	4096,
 	6144,
-	15360,
-	19200,
-	20480,
+	8192,
+	10240,
 };
 static int lowmem_minfree_size = 6;
 static int lmk_fast_run = 1;

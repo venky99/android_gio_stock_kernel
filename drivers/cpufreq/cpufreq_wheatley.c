@@ -503,7 +503,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		switch(checked) {
 			case 3:
 			{
-				if (unlikely(global_page_state(NR_FREE_PAGES) < 20480 && global_page_state(NR_FILE_PAGES) - global_page_state(NR_SHMEM) < 20480))
+				if (unlikely(global_page_state(NR_FREE_PAGES) < 10240 && global_page_state(NR_FILE_PAGES) - global_page_state(NR_SHMEM) < 10240))
 					max_freq = overclock;
 				else
 					max_freq = STOCK_MAX_FREQ;
