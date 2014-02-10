@@ -442,7 +442,7 @@ static int msm_rpm_set_exclusive(int ctx,
 	spin_unlock(&msm_rpm_irq_lock);
 	spin_unlock_irqrestore(&msm_rpm_lock, flags);
 
-	wait_for_completion(&ack);
+	wait_for_completion_interruptible(&ack);
 
 	BUG_ON((ctx_mask_ack & ~(msm_rpm_get_ctx_mask(MSM_RPM_CTX_REJECTED)))
 		!= ctx_mask);

@@ -495,7 +495,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int crci_mask, unsigned int cmdptr)
 #ifndef CONFIG_SCHED_BFS
 	wait_for_completion_io(&cmd.complete);
 #else
-	wait_for_completion(&cmd.complete);
+	wait_for_completion_interruptible(&cmd.complete);
 #endif
 
 	if (cmd.result != 0x80000002) {

@@ -467,7 +467,7 @@ static void dalrpc_sendwait(struct daldevice_handle *h)
 	mutex_unlock(&h->port->write_lock);
 
 	if (!h->msg.hdr.async)
-		wait_for_completion(&h->read_completion);
+		wait_for_completion_interruptible(&h->read_completion);
 }
 
 int daldevice_attach(uint32_t device_id, char *port, int cpu,

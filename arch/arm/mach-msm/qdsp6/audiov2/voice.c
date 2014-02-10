@@ -90,7 +90,7 @@ static int cvd_process_set_network(void)
 static int voice_thread(void *data)
 {
 	while (!kthread_should_stop()) {
-		wait_for_completion(&voice.compl);
+		wait_for_completion_interruptible(&voice.compl);
 		init_completion(&voice.compl);
 
 		switch (voice.apr_pkt.opcode) {

@@ -136,7 +136,7 @@ static int msm_cpufreq_target(struct cpufreq_policy *policy,
 		cancel_work_sync(&cpu_work->work);
 		init_completion(&cpu_work->complete);
 		schedule_work_on(policy->cpu, &cpu_work->work);
-		wait_for_completion(&cpu_work->complete);
+		wait_for_completion_interruptible(&cpu_work->complete);
 	}
 
 	free_cpumask_var(mask);

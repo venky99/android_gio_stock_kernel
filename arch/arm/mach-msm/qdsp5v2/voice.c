@@ -533,7 +533,7 @@ static int voice_thread(void *data)
 	MM_INFO("voice_thread() start\n");
 
 	while (!kthread_should_stop()) {
-		wait_for_completion(&v->complete);
+		wait_for_completion_interruptible(&v->complete);
 		init_completion(&v->complete);
 
 		MM_DBG(" voc_event=%d, voice state =%d, dev_event=%d\n",

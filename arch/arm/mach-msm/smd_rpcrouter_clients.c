@@ -293,7 +293,7 @@ struct msm_rpc_client *msm_rpc_register_client(
 		rc = PTR_ERR(client->cb_thread);
 		client->exit_flag = 1;
 		msm_rpc_read_wakeup(client->ept);
-		wait_for_completion(&client->complete);
+		wait_for_completion_interruptible(&client->complete);
 		msm_rpc_close(client->ept);
 		msm_rpc_destroy_client(client);
 		return ERR_PTR(rc);
@@ -373,7 +373,7 @@ struct msm_rpc_client *msm_rpc_register_client2(
 		rc = PTR_ERR(client->cb_thread);
 		client->exit_flag = 1;
 		msm_rpc_read_wakeup(client->ept);
-		wait_for_completion(&client->complete);
+		wait_for_completion_interruptible(&client->complete);
 		msm_rpc_close(client->ept);
 		msm_rpc_destroy_client(client);
 		return ERR_PTR(rc);
@@ -400,11 +400,11 @@ int msm_rpc_unregister_client(struct msm_rpc_client *client)
 	if (client->cb_thread) {
 		client->cb_avail = 1;
 		wake_up(&client->cb_wait);
-		wait_for_completion(&client->cb_complete);
+		wait_for_completion_interruptible(&client->cb_complete);
 	}
 
 	msm_rpc_read_wakeup(client->ept);
-	wait_for_completion(&client->complete);
+	wait_for_completion_interruptible(&client->complete);
 
 	msm_rpc_close(client->ept);
 	msm_rpc_remove_all_cb_func(client);
